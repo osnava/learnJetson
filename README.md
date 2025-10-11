@@ -8,6 +8,53 @@ This repository contains a self-driving algorithm designed to run on the NVIDIA 
 - Docker with NVIDIA runtime support
 - SSD mounted at `/ssd`
 
+## Jetson Configuration
+
+### Finding Jetson IP Address
+
+To connect via SSH, you need to find the Jetson's IP address:
+
+```bash
+# Show all network interfaces and their IPs
+ip addr show
+
+# Or use hostname -I to show all IPs
+hostname -I
+```
+
+**Common interfaces:**
+- `eth0`: Ethernet connection
+- `wlan0`: WiFi connection
+- `l4tbr0` or `usb0`: USB network connection (when connected via USB to host computer)
+
+**Quick reference:**
+```bash
+# Ethernet IP
+ip addr show eth0 | grep 'inet '
+
+# WiFi IP
+ip addr show wlan0 | grep 'inet '
+
+# USB network IP
+ip addr show l4tbr0 | grep 'inet '
+```
+
+### Disable GUI to Free GPU Memory
+
+For better GPU performance, disable the graphical interface and use SSH-only mode:
+
+```bash
+sudo systemctl set-default multi-user.target
+sudo reboot
+```
+
+To re-enable the GUI later (if needed):
+
+```bash
+sudo systemctl set-default graphical.target
+sudo reboot
+```
+
 ## Setup
 
 ### Build Docker Image
