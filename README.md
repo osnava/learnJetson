@@ -291,4 +291,4 @@ The detector filters YOLO's 80 classes to focus only on objects relevant for sel
 
 ## License
 
-(Add license information)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
