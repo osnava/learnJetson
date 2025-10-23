@@ -1,0 +1,5 @@
+# Video files - only commit GIFs
+*.mp4
+
+# Allow GIF files
+!*.gif
