@@ -1,24 +1,20 @@
 from flask import Flask, Response
 import cv2
 from ultralytics import YOLO
-import time
-
-# Reset camera before anything else
-def reset_camera():
-    for i in range(3):
-        cap = cv2.VideoCapture(0)
-        cap.release()
-        time.sleep(0.5)
-
-reset_camera()
 
 app = Flask(__name__)
+
 model = YOLO('/ssd/yolo11n.engine')
 
 def generate_frames():
     camera = cv2.VideoCapture(0)
     camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     
+    # Flush camera buffer
+    camera.release()
+    camera = cv2.VideoCapture(0)
+    
+    # Warm up
     for _ in range(30):
         camera.read()
     
