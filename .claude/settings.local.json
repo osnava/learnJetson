@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(chmod:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "WebSearch",
+      "WebFetch(domain:www.jetson-ai-lab.com)"
     ],
     "deny": [],
     "ask": []
