@@ -59,22 +59,6 @@ sudo reboot
 
 Best practices for maximizing performance on the Jetson Orin Nano:
 
-#### Enable MAX Power Mode
-
-Ensures all CPU and GPU cores are turned on:
-
-```bash
-sudo nvpmodel -m 2
-```
-
-#### Enable Jetson Clocks
-
-Clocks all CPU and GPU cores at their maximum frequency:
-
-```bash
-sudo jetson_clocks
-```
-
 #### Install Jetson Stats Application
 
 Monitor system temperatures, CPU/GPU/RAM utilization, and manage performance settings:
@@ -91,7 +75,51 @@ Run the monitoring tool:
 jtop
 ```
 
-**Note:** These optimizations are especially important when running compute-intensive workloads like YOLO object detection or LLM inference.
+#### Configure Performance Settings in jtop
+
+**IMPORTANT:** Follow these steps in order BEFORE loading models or running inference scripts:
+
+**1. Set Fan Profile to Cool Mode**
+
+Press **`5`** to go to the CTRL section, then navigate to Profiles and select **[cool]**:
+
+![CTRL Section - Fan and Power Settings](resources/CTRL_section.png)
+
+- **Fan Profile:** Set to **[cool]** (keeps temperature low under heavy load)
+- **Jetson Clocks:** Press **`s`** to start (shows **[s] running**)
+- **NVP Power Mode:** Select **MAXN SUPER** or **25W** mode
+
+**2. Clear Memory Cache**
+
+Press **`4`** to go to the MEM section, then press **`c`** to clear cache:
+
+![MEM Section - Before Clearing Cache](resources/MEM_section.png)
+
+*Before: Cache uses ~1.6G of memory*
+
+![MEM Section - After Clearing Cache](resources/MEM_section_clear_cache.png)
+
+*After: Cache reduced to ~421M, freeing up memory for models*
+
+**3. Verify Settings**
+
+Ensure the following are active:
+- ✅ Fan profile: **cool**
+- ✅ Jetson Clocks: **running**
+- ✅ Power Mode: **MAXN SUPER** or **25W**
+- ✅ Cache: **cleared**
+
+**Command Line Alternatives:**
+
+```bash
+# Enable MAX Power Mode
+sudo nvpmodel -m 2
+
+# Enable Jetson Clocks
+sudo jetson_clocks
+```
+
+**Note:** These optimizations are **critical** when running compute-intensive workloads like YOLO object detection or LLM inference. Always clear cache before loading new models to maximize available memory.
 
 ## Setup
 
@@ -164,6 +192,12 @@ Replace `<JETSON_IP>` with your Jetson's IP address (e.g., `http://192.168.1.100
 
 For pixel-level object segmentation, use the YOLO11n segmentation model:
 
+**Demo:**
+
+![Instance Segmentation Demo](resources/segmentation.gif)
+
+*YOLO11n-seg providing pixel-perfect masks for detected objects*
+
 **1. Download and validate the segmentation model:**
 
 ```python
@@ -178,7 +212,24 @@ print("Mean Average Precision for boxes:", metrics.box.map)
 print("Mean Average Precision for masks:", metrics.seg.map)
 ```
 
-**2. Run the segmentation server:**
+**2. Export to TensorRT for GPU acceleration:**
+
+```bash
+# Export YOLO11n segmentation model to TensorRT format
+yolo export model=yolo11n-seg.pt format=engine  # creates 'yolo11n-seg.engine'
+```
+
+Or using Python:
+
+```python
+from ultralytics import YOLO
+
+# Load and export the segmentation model
+model = YOLO("yolo11n-seg.pt")
+model.export(format="engine")  # creates 'yolo11n-seg.engine'
+```
+
+**3. Run the segmentation server:**
 
 ```bash
 python src/segmentation_server.py
@@ -195,46 +246,79 @@ The segmentation model provides pixel-perfect masks for detected objects, useful
 
 Run large language models locally on the Jetson Orin Nano using Ollama.
 
-#### Option A: Native Installation (Recommended)
+**Demo:**
+
+![Ollama with Open WebUI](resources/ollama_openwebui_gemma3.gif)
+
+*Gemma 3 running locally on Jetson Orin Nano via Ollama with Open WebUI chat interface*
+
+**Setup with jetson-containers:**
+
+**First time - create and run with a name:**
 
 ```bash
-curl -fsSL https://ollama.com/install.sh | sh
-```
-
-**Start Ollama service:**
-
-```bash
-ollama serve
-```
-
-**Run a model (in a new terminal):**
-
-```bash
-# Lightweight models for 8GB Orin Nano
-ollama run phi3
-ollama run llama3.2:3b
-ollama run qwen2.5:3b
-
-# Larger models (may be slower)
-ollama run llama3.2:8b
-```
-
-#### Option B: Docker Installation
-
-**Using jetson-containers:**
-
-```bash
-jetson-containers run --name ollama \
+jetson-containers run --name ollama-jetson \
   -v /ssd/ollama:/ollama \
   -e OLLAMA_MODELS=/ollama \
   $(autotag ollama)
+```
+
+**Subsequent runs - just start the existing container:**
+
+```bash
+sudo docker start -ai ollama-jetson
+```
+
+**Download LLM Models:**
+
+Inside the container or on the host (if using native Ollama), pull models:
+
+```bash
+ollama pull gemma3:4b
+```
+
+Browse available models at: **https://ollama.com/search**
+
+**Understanding Model Names:**
+
+Model names follow the format: `model_name:parameters-variant-quantization`
+
+Example: `gemma3:4b-it-q4_K_M`
+- **gemma3** - Model name/family
+- **4b** - Number of parameters (4 billion)
+- **it** - Instruction-tuned variant
+- **q4_K_M** - Quantization method (4-bit, K-quant, Medium precision)
+
+**Common parameter sizes for Jetson Orin Nano 8GB:**
+- **1b-3b** - Very fast, good for simple tasks
+- **4b-7b** - Balanced performance and quality (recommended)
+- **8b-13b** - Slower but higher quality (may require aggressive quantization)
+
+**Quantization types (lower bits = faster but less accurate):**
+- **Q4_K_M** - 4-bit, medium quality (good balance)
+- **Q4_K_S** - 4-bit, small/fast
+- **Q5_K_M** - 5-bit, better quality
+- **Q8_0** - 8-bit, high quality but larger
+
+**Recommended models for Jetson Orin Nano:**
+```bash
+ollama pull gemma3:4b           # Google's efficient 4B model
+ollama pull phi3:3.8b           # Microsoft's compact model
+ollama pull llama3.2:3b         # Meta's lightweight Llama
+ollama pull qwen2.5:3b          # Alibaba's multilingual model
+```
+
+**Run a model:**
+
+```bash
+ollama run gemma3:4b
 ```
 
 **Access Ollama API:**
 
 ```bash
 curl http://localhost:11434/api/generate -d '{
-  "model": "phi3",
+  "model": "gemma3:4b",
   "prompt": "Why is the sky blue?"
 }'
 ```

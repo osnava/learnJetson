@@ -4,8 +4,9 @@ from ultralytics import YOLO
 
 app = Flask(__name__)
 
-# Load YOLO11n segmentation model
-model = YOLO('yolo11n-seg.pt')
+# Load YOLO11n segmentation model (use TensorRT engine for better performance)
+# Use 'yolo11n-seg.engine' if available, otherwise 'yolo11n-seg.pt'
+model = YOLO('yolo11n-seg.engine')  # or 'yolo11n-seg.pt' if engine not yet created
 
 def generate_frames():
     camera = cv2.VideoCapture(0)
