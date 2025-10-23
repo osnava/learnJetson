@@ -4,7 +4,10 @@
       "Bash(chmod:*)",
       "Bash(git mv:*)",
       "WebSearch",
-      "WebFetch(domain:www.jetson-ai-lab.com)"
+      "WebFetch(domain:www.jetson-ai-lab.com)",
+      "Bash(sudo apt update:*)",
+      "Bash(sudo apt install:*)",
+      "Bash(ffmpeg:*)"
     ],
     "deny": [],
     "ask": []
