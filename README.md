@@ -230,6 +230,61 @@ Access at `http://<JETSON_IP>:8080`
 
 Development environment for autonomous vehicle algorithms using the vision processing stack.
 
+**Demo:**
+
+![Street Object Detection](resources/street_object_detection.gif)
+
+*YOLO11n detecting vehicles, pedestrians, traffic lights, and stop signs on street footage*
+
+#### Model Setup and Optimization
+
+This project uses YOLO11n optimized for the Jetson Orin Nano's GPU through TensorRT quantization:
+
+**1. Download the pretrained model:**
+
+```python
+from ultralytics import YOLO
+
+# Download YOLO11n PyTorch model
+model = YOLO("yolo11n.pt")
+```
+
+**2. Export to TensorRT for GPU acceleration:**
+
+```python
+# Export the model to TensorRT engine format
+model.export(format="engine")  # creates 'yolo11n.engine'
+
+# Load the optimized TensorRT model
+trt_model = YOLO("yolo11n.engine")
+```
+
+The TensorRT engine (`yolo11n.engine`) provides significant performance improvements on Jetson hardware compared to the original PyTorch model.
+
+**Model files in this repo:**
+- `models/yolo11n.pt` - Original PyTorch model (5.6 MB)
+- `models/yolo11n.onnx` - ONNX intermediate format (10.7 MB)
+- `models/yolo11n.engine` - TensorRT optimized for Jetson (12.5 MB)
+
+#### Processing Videos with Object Detection
+
+Use `video_detector.py` to process video files with self-driving relevant object detection:
+
+```bash
+# Process a video file
+python src/video_detector.py <input_video.mp4> <output_video.mp4>
+
+# Example
+python src/video_detector.py street_footage.mp4 detected_street.mp4
+```
+
+**Detected object classes:**
+- Vehicles: car, bus, truck, motorcycle, bicycle
+- Pedestrians: person
+- Traffic infrastructure: traffic light, stop sign
+
+The detector filters YOLO's 80 classes to focus only on objects relevant for self-driving scenarios.
+
 ## Getting Started
 
 (Add your specific instructions here)
