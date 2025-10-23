@@ -126,10 +126,37 @@ sudo docker run -it --name ultralytics-jetson \
 sudo docker start -ai ultralytics-jetson
 ```
 
+**Install Flask for web-based applications:**
+
+```bash
+pip install flask
+```
+
+**Running Object Detection Web Interface:**
+
+The Flask-based applications provide a web interface accessible from any browser on your network.
+
+1. **Start the web server** (inside the Docker container):
+
+```bash
+# For real-time camera detection with web streaming
+python src/simple_object_detection.py
+
+# Or for the detection API server
+python src/detection_server.py
+```
+
+2. **Access in your browser:**
+```
+http://<JETSON_IP>:5000
+```
+
+Replace `<JETSON_IP>` with your Jetson's IP address (e.g., `http://192.168.1.100:5000`)
+
 **Example applications:**
-- `src/simple_object_detection.py` - Real-time object detection with web streaming
-- `src/video_detector.py` - Video file processing
-- `src/detection_server.py` - Detection API server
+- `src/simple_object_detection.py` - Real-time object detection with web streaming (Flask, port 5000)
+- `src/detection_server.py` - Detection API server with web interface (Flask, port 5000)
+- `src/video_detector.py` - Video file processing (command-line only)
 
 ### 2. LLM Inference (Local Language Models)
 
