@@ -4,7 +4,8 @@ from ultralytics import YOLO
 
 app = Flask(__name__)
 
-model = YOLO('/ssd/yolo11n.engine')
+# Load YOLO11n segmentation model
+model = YOLO('yolo11n-seg.pt')
 
 def generate_frames():
     camera = cv2.VideoCapture(0)
@@ -23,7 +24,10 @@ def generate_frames():
         if not success:
             continue
 
+        # Run segmentation inference
         results = model(frame, verbose=False)
+
+        # Plot results with masks
         annotated_frame = results[0].plot()
 
         ret, buffer = cv2.imencode('.jpg', annotated_frame)
@@ -40,10 +44,11 @@ def index():
     <!DOCTYPE html>
     <html>
         <head>
-            <title>YOLO Detection</title>
+            <title>YOLO Segmentation</title>
         </head>
-        <body style="margin:0; background:#000; display:flex; justify-content:center; align-items:center; height:100vh;">
-            <img src="/video_feed" style="max-width:100%; max-height:100%;">
+        <body style="margin:0; background:#000; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh;">
+            <h1 style="color:#fff; font-family:Arial;">YOLO11n Instance Segmentation</h1>
+            <img src="/video_feed" style="max-width:90%; max-height:80%; border:2px solid #fff;">
         </body>
     </html>
     '''
@@ -54,4 +59,4 @@ def video_feed():
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5001, debug=False)

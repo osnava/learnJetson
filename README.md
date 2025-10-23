@@ -117,6 +117,7 @@ sudo docker run -it --name ultralytics-jetson \
   -v /ssd:/ssd \
   -w /ssd \
   -p 5000:5000 \
+  -p 5001:5001 \
   ultralytics/ultralytics:latest-jetson-jetpack6
 ```
 
@@ -156,7 +157,39 @@ Replace `<JETSON_IP>` with your Jetson's IP address (e.g., `http://192.168.1.100
 **Example applications:**
 - `src/simple_object_detection.py` - Real-time object detection with web streaming (Flask, port 5000)
 - `src/detection_server.py` - Detection API server with web interface (Flask, port 5000)
+- `src/segmentation_server.py` - Instance segmentation with web interface (Flask, port 5001)
 - `src/video_detector.py` - Video file processing (command-line only)
+
+#### Instance Segmentation
+
+For pixel-level object segmentation, use the YOLO11n segmentation model:
+
+**1. Download and validate the segmentation model:**
+
+```python
+from ultralytics import YOLO
+
+# Load a pretrained segmentation model
+model = YOLO("yolo11n-seg.pt")
+
+# Validate the model
+metrics = model.val()
+print("Mean Average Precision for boxes:", metrics.box.map)
+print("Mean Average Precision for masks:", metrics.seg.map)
+```
+
+**2. Run the segmentation server:**
+
+```bash
+python src/segmentation_server.py
+```
+
+**3. Access in your browser:**
+```
+http://<JETSON_IP>:5001
+```
+
+The segmentation model provides pixel-perfect masks for detected objects, useful for more precise scene understanding compared to bounding boxes alone.
 
 ### 2. LLM Inference (Local Language Models)
 
