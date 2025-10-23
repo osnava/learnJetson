@@ -101,9 +101,9 @@ This repository supports multiple AI/ML workloads. Choose the setup that matches
 
 Uses the Ultralytics container for YOLO-based object detection and vision tasks.
 
-**Demo Video:**
+**Demo:**
 
-<video src="https://github.com/osnava/selfdriving/raw/main/resources/object_detection_demo.mp4" controls></video>
+![Object Detection Demo](resources/object_detection_demo.gif)
 
 *Real-time object detection running on Jetson Orin Nano*
 
