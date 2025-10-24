@@ -17,6 +17,16 @@ This repository contains AI/ML development projects and deployment configuration
 - **SSD Configuration for Docker:** https://www.jetson-ai-lab.com/tips_ssd-docker.html
 - **Jetson Containers Installation:** https://github.com/dusty-nv/jetson-containers/blob/master/docs/setup.md
 
+**Configure jetson-containers alias:**
+
+```bash
+echo 'alias jetson-containers="/ssd/jetson-containers/jetson-containers"' >> ~/.bashrc
+echo 'export PATH="/ssd/jetson-containers:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+This allows you to run `jetson-containers` from any directory.
+
 ## Jetson Configuration
 
 ### Finding Jetson IP Address
@@ -265,19 +275,11 @@ Run large language models locally on the Jetson Orin Nano using Ollama.
 
 **Setup with jetson-containers:**
 
-**First time - create and run with a name:**
-
 ```bash
-jetson-containers run --name ollama-jetson \
+jetson-containers run \
   -v /ssd/ollama:/ollama \
   -e OLLAMA_MODELS=/ollama \
   $(autotag ollama)
-```
-
-**Subsequent runs - just start the existing container:**
-
-```bash
-sudo docker start -ai ollama-jetson
 ```
 
 **Download LLM Models:**
@@ -354,7 +356,106 @@ Access at `http://<JETSON_IP>:8080`
 - Model sizes: 2GB-8GB per model
 - Recommended: NVMe SSD with 64GB+ free space
 
-### 3. Self-Driving Applications
+### 3. Vision Language Models (VLMs)
+
+Vision Language Models combine visual understanding with language capabilities, enabling the model to analyze images and answer questions about them.
+
+**1. Start the nano_llm container:**
+
+```bash
+jetson-containers run $(autotag nano_llm)
+```
+
+**2. Run VILA 1.5-3B inside the container:**
+
+```bash
+python3 -m nano_llm.chat --api mlc \
+  --model Efficient-Large-Model/VILA1.5-3b \
+  --max-context-len 256 \
+  --max-new-tokens 32
+```
+
+**Model Details:**
+- **VILA 1.5-3B** - Efficient vision-language model optimized for edge devices
+- **Parameters:** 3 billion (good balance for Jetson Orin Nano 8GB)
+- **Capabilities:** Image understanding, visual question answering, image captioning
+
+**Usage:**
+The model accepts both text prompts and images, allowing you to ask questions about visual content. Perfect for applications requiring visual understanding combined with natural language processing.
+
+**Example - Fruit Detection:**
+
+Inside the container, download a test image and ask the VLM about it:
+
+```bash
+# Download test image inside the container
+wget https://raw.githubusercontent.com/dusty-nv/jetson-inference/master/data/images/orange_0.jpg
+
+# Run VILA with the image and ask a question
+python3 -m nano_llm.chat --api mlc \
+  --model Efficient-Large-Model/VILA1.5-3b \
+  --max-context-len 256 \
+  --max-new-tokens 32
+```
+
+**Input Image (downloaded via wget inside container):**
+
+<img src="https://raw.githubusercontent.com/dusty-nv/jetson-inference/master/data/images/orange_0.jpg" width="50%" alt="Orange Test Image">
+
+When prompted, provide the image path and ask questions:
+
+```
+>> PROMPT: orange_0.jpg
+>> PROMPT: what fruit is?
+```
+
+**Output:**
+
+![VLM Fruit Detection Example](resources/vlm_fruit_orange_detected.png)
+
+The model correctly identifies the fruit as an orange, demonstrating its visual understanding capabilities. Performance metrics show efficient inference on the Jetson Orin Nano:
+- **Prefill rate:** 266.97 tokens/sec
+- **Decode rate:** 23.10 tokens/sec
+
+**Live Camera VLM - Real-time Video Question Answering:**
+
+For real-time visual question answering with a live camera feed:
+
+```bash
+jetson-containers run $(autotag nano_llm) \
+  python3 -m nano_llm.agents.video_query --api=mlc \
+  --model Efficient-Large-Model/VILA1.5-3b \
+  --max-context-len 256 \
+  --max-new-tokens 32 \
+  --video-input /dev/video0 \
+  --video-output webrtc://@:8554/output
+```
+
+**Demo:**
+
+![VLM Live Camera Demo](resources/VLM_live_cam.gif)
+
+*Real-time visual question answering with VILA 1.5-3B processing live camera feed*
+
+This enables interactive visual Q&A with your camera, streaming the annotated results via WebRTC on port 8554.
+
+**Alternative VLM - Obsidian 3B:**
+
+```bash
+jetson-containers run $(autotag nano_llm) \
+  python3 -m nano_llm.chat --api=mlc \
+  --model NousResearch/Obsidian-3B-V0.5 \
+  --max-context-len 256 \
+  --max-new-tokens 32
+```
+
+**Storage Requirements:**
+- nano_llm container: ~8GB
+- VILA 1.5-3B model: ~6GB
+- Obsidian 3B model: ~6GB
+- Recommended: NVMe SSD with 64GB+ free space
+
+### 4. Self-Driving Applications
 
 Development environment for autonomous vehicle algorithms using the vision processing stack.
 
