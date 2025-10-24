@@ -2,11 +2,20 @@
 
 This repository contains AI/ML development projects and deployment configurations for the NVIDIA Jetson Orin Nano, including vision processing, LLM inference, and self-driving applications.
 
+![Jetson Orin Nano Hardware Setup](resources/jetson_hw_setup.gif)
+
+*NVIDIA Jetson Orin Nano 8GB Developer Kit with NVMe SSD and cooling setup*
+
 ## Prerequisites
 
 - NVIDIA Jetson Orin Nano (8GB) with JetPack 6
 - Docker with NVIDIA runtime support
 - NVMe SSD mounted at `/ssd` (highly recommended for performance and storage)
+
+**Setup References:**
+- **Initial Setup (SD Card + NVMe SSD):** https://www.jetson-ai-lab.com/initial_setup_jon.html
+- **SSD Configuration for Docker:** https://www.jetson-ai-lab.com/tips_ssd-docker.html
+- **Jetson Containers Installation:** https://github.com/dusty-nv/jetson-containers/blob/master/docs/setup.md
 
 ## Jetson Configuration
 
