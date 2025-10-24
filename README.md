@@ -110,6 +110,8 @@ Press **`4`** to go to the MEM section, then press **`c`** to clear cache:
 
 *After: Cache reduced to ~421M, freeing up memory for models*
 
+**IMPORTANT:** Clear the cache **every time** before loading a model or running an inference script. This ensures maximum GPU memory is available for your models, preventing out-of-memory errors and improving performance.
+
 **3. Verify Settings**
 
 Ensure the following are active:
