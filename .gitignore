@@ -3,3 +3,6 @@
 
 # Allow GIF files
 !*.gif
+
+# Claude Code configuration
+.claude/
