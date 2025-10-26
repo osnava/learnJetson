@@ -514,10 +514,6 @@ python src/video_detector.py street_footage.mp4 detected_street.mp4
 
 The detector filters YOLO's 80 classes to focus only on objects relevant for self-driving scenarios.
 
-## Getting Started
-
-(Add your specific instructions here)
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
