@@ -184,15 +184,9 @@ pip install flask
 
 **Running Object Detection Web Interface:**
 
-The Flask-based applications provide a web interface accessible from any browser on your network.
-
-1. **Start the web server** (inside the Docker container):
+1. **Start the detection server** (inside the Docker container):
 
 ```bash
-# For real-time camera detection with web streaming
-python src/simple_object_detection.py
-
-# Or for the detection API server
 python src/detection_server.py
 ```
 
@@ -204,8 +198,7 @@ http://<JETSON_IP>:5000
 Replace `<JETSON_IP>` with your Jetson's IP address (e.g., `http://192.168.1.100:5000`)
 
 **Example applications:**
-- `src/simple_object_detection.py` - Real-time object detection with web streaming (Flask, port 5000)
-- `src/detection_server.py` - Detection API server with web interface (Flask, port 5000)
+- `src/detection_server.py` - Real-time camera detection with web streaming (Flask, port 5000)
 - `src/segmentation_server.py` - Instance segmentation with web interface (Flask, port 5001)
 - `src/video_detector.py` - Video file processing (command-line only)
 
@@ -256,7 +249,7 @@ model.export(format="engine")  # creates 'yolo11n-seg.engine'
 python src/segmentation_server.py
 ```
 
-**3. Access in your browser:**
+**4. Access in your browser:**
 ```
 http://<JETSON_IP>:5001
 ```
