@@ -16,6 +16,7 @@ This repository contains AI/ML development projects and deployment configuration
 - **Initial Setup (SD Card + NVMe SSD):** https://www.jetson-ai-lab.com/initial_setup_jon.html
 - **SSD Configuration for Docker:** https://www.jetson-ai-lab.com/tips_ssd-docker.html
 - **Jetson Containers Installation:** https://github.com/dusty-nv/jetson-containers/blob/master/docs/setup.md
+- **RAM Optimization:** https://www.jetson-ai-lab.com/tips_ram-optimization.html
 
 **Configure jetson-containers alias:**
 
@@ -29,9 +30,17 @@ This allows you to run `jetson-containers` from any directory.
 
 ## Jetson Configuration
 
-### Finding Jetson IP Address
+### Connecting to Jetson
 
-To connect via SSH, you need to find the Jetson's IP address:
+You can work with the Jetson using different connection methods:
+
+1. **Direct connection**: Keyboard + mouse + monitor connected to the Jetson
+2. **SSH (remote connection)**: Access from your computer via network (headless mode)
+3. **Hybrid**: Use both methods simultaneously
+
+**Finding Your Jetson's IP Address:**
+
+To connect via SSH, you first need to find the Jetson's IP address:
 
 ```bash
 # Show all network interfaces and their IPs
@@ -41,12 +50,12 @@ ip addr show
 hostname -I
 ```
 
-**Common interfaces:**
+**Common network interfaces:**
 - `eth0`: Ethernet connection
 - `wlan0`: WiFi connection
 - `l4tbr0` or `usb0`: USB network connection (when connected via USB to host computer)
 
-**Quick reference:**
+**Quick reference commands:**
 ```bash
 # Ethernet IP
 ip addr show eth0 | grep 'inet '
@@ -58,9 +67,31 @@ ip addr show wlan0 | grep 'inet '
 ip addr show l4tbr0 | grep 'inet '
 ```
 
+**SSH Connection Instructions:**
+
+**Windows users** - Use an SSH client like:
+- **MobaXterm** (recommended - includes X11 forwarding and file transfer)
+- PuTTY
+- Windows Terminal with built-in SSH
+
+**Linux/Mac users** - Use the built-in terminal SSH client:
+
+```bash
+ssh <username>@<JETSON_IP>
+
+# Example
+ssh jetson@192.168.1.100
+```
+
+**Benefits of headless (SSH-only) operation:**
+- Frees up GPU memory by disabling the graphical interface
+- Access Jetson from any device on your network (laptop, desktop, tablet)
+- More efficient for development workflows
+- Run multiple SSH sessions simultaneously
+
 ### Disable GUI to Free GPU Memory
 
-For better GPU performance, disable the graphical interface and use SSH-only mode:
+For maximum GPU performance, disable the graphical interface and work in SSH-only mode (headless operation - see SSH connection instructions above):
 
 ```bash
 sudo systemctl set-default multi-user.target
