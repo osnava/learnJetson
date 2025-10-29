@@ -43,29 +43,23 @@ You can work with the Jetson using different connection methods:
 To connect via SSH, you first need to find the Jetson's IP address:
 
 ```bash
-# Show all network interfaces and their IPs
-ip addr show
-
-# Or use hostname -I to show all IPs
-hostname -I
+# Show all network interfaces with their IPs (brief format)
+ip -br addr show
 ```
 
-**Common network interfaces:**
-- `eth0`: Ethernet connection
-- `wlan0`: WiFi connection
-- `l4tbr0` or `usb0`: USB network connection (when connected via USB to host computer)
-
-**Quick reference commands:**
-```bash
-# Ethernet IP
-ip addr show eth0 | grep 'inet '
-
-# WiFi IP
-ip addr show wlan0 | grep 'inet '
-
-# USB network IP
-ip addr show l4tbr0 | grep 'inet '
+**Example output:**
 ```
+lo               UNKNOWN        127.0.0.1/8 ::1/128
+can0             DOWN
+wlP1p1s0         UP             192.168.1.100/24
+enP8p1s0         DOWN
+l4tbr0           DOWN
+usb0             DOWN
+usb1             DOWN
+docker0          DOWN           172.17.0.1/16
+```
+
+Look for interfaces with status **UP** to find your active connection IP address.
 
 **SSH Connection Instructions:**
 
