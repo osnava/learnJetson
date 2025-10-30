@@ -163,6 +163,9 @@ sudo nvpmodel -m 2
 
 # Enable Jetson Clocks
 sudo jetson_clocks
+
+# Clear memory cache (run before loading models)
+sudo sysctl vm.drop_caches=3
 ```
 
 **Note:** These optimizations are **critical** when running compute-intensive workloads like YOLO object detection or LLM inference. Always clear cache before loading new models to maximize available memory.
