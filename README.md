@@ -646,6 +646,14 @@ python src/formula_1_segmentation.py <input_video.mp4>
 
 Detects class 10 (racetrack) and class 3 (ego_vehicle) using `racetrack_model.engine`.
 
+**Model classes:**
+```python
+['car', 'cross_parking_free', 'cross_parking_occupied', 'ego_vehicle', 'finish_line',
+ 'obstacle', 'person', 'pitlane', 'pitlane_entry', 'pitlane_exit', 'racetrack',
+ 'trafficlight_green', 'trafficlight_off', 'trafficlight_red', 'trafficlight_yellow',
+ 'trafficlight_yellow_red', 'vertical_parking_free', 'vertical_parking_occupied']
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
