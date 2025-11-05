@@ -535,6 +535,60 @@ python src/video_detector.py street_footage.mp4 detected_street.mp4
 
 The detector filters YOLO's 80 classes to focus only on objects relevant for self-driving scenarios.
 
+#### Training Custom YOLO Models for Autonomous Driving
+
+This section demonstrates how to train YOLO11n-seg on custom racetrack datasets for autonomous racing applications.
+
+**Dataset Preparation:**
+
+The training dataset was sourced from [Roboflow's Autonomous Driving Challenge - Racetrack dataset](https://universe.roboflow.com/autonomous-driving-challenge/racetrack). The dataset was imported into a Roboflow project workspace, which allows for easy annotation management, augmentation, and export. From the Roboflow project, the dataset was exported in **YOLOv11 format**, which is directly compatible with Ultralytics YOLO training.
+
+**Training Script:**
+
+```python
+from ultralytics import YOLO
+
+model = YOLO('yolo11n-seg.pt')
+
+results = model.train(
+    data='/ssd/Racetrack.v1i.yolov11/data.yaml',
+    epochs=100,
+    imgsz=416,
+    batch=8,        # Increased from 2
+    workers=6,
+    device=0,
+    cache='ram',
+    val=False,
+    amp=True
+)
+```
+
+**Handling CUDA Out-of-Memory Errors:**
+
+Training on the Jetson Orin Nano's limited GPU memory (8GB shared with system) can trigger CUDA out-of-memory errors. If this occurs, adjust these parameters to reduce memory usage:
+
+- **`batch`** - Reduce batch size (e.g., from 8 to 4 or 2). Smaller batches use less GPU memory but may slow training.
+- **`imgsz`** - Decrease image size (e.g., from 416 to 320 or 256). Smaller images require less memory.
+- **`cache`** - Change from `'ram'` to `False` to avoid caching images in memory, or use `'disk'` for disk caching.
+- **`workers`** - Reduce number of dataloader workers (e.g., from 6 to 4 or 2) to lower CPU memory usage.
+- **`amp`** - Keep `True` for Automatic Mixed Precision, which uses FP16 to reduce memory consumption.
+
+**Important:** Always clear GPU cache before training (see Performance Optimization section above):
+```bash
+sudo sysctl vm.drop_caches=3
+```
+
+**Training Progress:**
+
+![YOLO Training Epochs](resources/epochs.png)
+
+The training metrics show the model's learning progression over 100 epochs. Key observations:
+- **box_loss** (bounding box regression) decreases from ~1.3 to ~0.94, indicating improved object localization
+- **seg_loss** (segmentation mask) decreases from ~2.5 to ~1.69, showing better pixel-level segmentation
+- **cls_loss** (classification) drops from ~2.9 to ~0.89, demonstrating improved class prediction accuracy
+
+Training speed on the Jetson Orin Nano averages **3.9-4.0 iterations/second**, with each epoch completing in approximately **1-2 minutes**. For the full 100-epoch training run, expect a total training time of roughly **2.5-3.5 hours**, depending on dataset size and system load.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
