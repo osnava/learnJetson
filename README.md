@@ -596,6 +596,8 @@ results = model.train(
 )
 ```
 
+Trained models are saved to `/ultralytics/runs/segment/train7/weights/best.pt`
+
 **Handling CUDA Out-of-Memory Errors:**
 
 Training on the Jetson Orin Nano's limited GPU memory (8GB shared with system) can trigger CUDA out-of-memory errors. If this occurs, adjust these parameters to reduce memory usage:
