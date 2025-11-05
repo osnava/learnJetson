@@ -6,12 +6,12 @@ This repository contains AI/ML development projects and deployment configuration
 
 <div align="center">
 
-[![Prerequisites](https://img.shields.io/badge/📋_Prerequisites-blue?style=for-the-badge)](#prerequisites)
-[![Configuration](https://img.shields.io/badge/⚙️_Configuration-green?style=for-the-badge)](#jetson-configuration)
-[![Vision](https://img.shields.io/badge/👁️_Vision_Processing-orange?style=for-the-badge)](#1-vision-processing-object-detection)
-[![LLM](https://img.shields.io/badge/🤖_LLM_Inference-purple?style=for-the-badge)](#2-llm-inference-local-language-models)
-[![VLM](https://img.shields.io/badge/🖼️_Vision_Language-red?style=for-the-badge)](#3-vision-language-models-vlms)
-[![Self-Driving](https://img.shields.io/badge/🚗_Self--Driving-yellow?style=for-the-badge)](#4-self-driving-applications)
+[![Prerequisites](https://img.shields.io/badge/Prerequisites-blue?style=for-the-badge)](#prerequisites)
+[![Configuration](https://img.shields.io/badge/Configuration-green?style=for-the-badge)](#jetson-configuration)
+[![Vision](https://img.shields.io/badge/Vision_Processing-orange?style=for-the-badge)](#1-vision-processing-object-detection)
+[![LLM](https://img.shields.io/badge/LLM_Inference-purple?style=for-the-badge)](#2-llm-inference-local-language-models)
+[![VLM](https://img.shields.io/badge/Vision_Language-red?style=for-the-badge)](#3-vision-language-models-vlms)
+[![Self-Driving](https://img.shields.io/badge/Self--Driving-yellow?style=for-the-badge)](#4-self-driving-applications)
 
 </div>
 
