@@ -28,6 +28,7 @@ This repository contains AI/ML development projects and deployment configuration
 - NVMe SSD mounted at `/ssd` (highly recommended for performance and storage)
 
 **Setup References:**
+
 - **Initial Setup (SD Card + NVMe SSD):** https://www.jetson-ai-lab.com/initial_setup_jon.html
 - **SSD Configuration for Docker:** https://www.jetson-ai-lab.com/tips_ssd-docker.html
 - **Jetson Containers Installation:** https://github.com/dusty-nv/jetson-containers/blob/master/docs/setup.md
@@ -63,6 +64,7 @@ ip -br addr show
 ```
 
 **Example output:**
+
 ```
 lo               UNKNOWN        127.0.0.1/8 ::1/128
 can0             DOWN
@@ -79,6 +81,7 @@ Look for interfaces with status **UP** to find your active connection IP address
 **SSH Connection Instructions:**
 
 **Windows users** - Use an SSH client like:
+
 - **MobaXterm** (recommended - includes X11 forwarding and file transfer)
 - PuTTY
 - Windows Terminal with built-in SSH
@@ -93,6 +96,7 @@ ssh jetson@192.168.1.100
 ```
 
 **Benefits of headless (SSH-only) operation:**
+
 - Frees up GPU memory by disabling the graphical interface
 - Access Jetson from any device on your network (laptop, desktop, tablet)
 - More efficient for development workflows
@@ -165,6 +169,7 @@ Press **`4`** to go to the MEM section, then press **`c`** to clear cache:
 **3. Verify Settings**
 
 Ensure the following are active:
+
 - ✅ Fan profile: **cool**
 - ✅ Jetson Clocks: **running**
 - ✅ Power Mode: **MAXN SUPER** or **25W**
@@ -234,6 +239,7 @@ python src/detection_server.py
 ```
 
 2. **Access in your browser:**
+
 ```
 http://<JETSON_IP>:5000
 ```
@@ -241,6 +247,7 @@ http://<JETSON_IP>:5000
 Replace `<JETSON_IP>` with your Jetson's IP address (e.g., `http://192.168.1.100:5000`)
 
 **Example applications:**
+
 - `src/detection_server.py` - Real-time camera detection with web streaming (Flask, port 5000)
 - `src/segmentation_server.py` - Instance segmentation with web interface (Flask, port 5001)
 - `src/video_detector.py` - Video file processing (command-line only)
@@ -293,6 +300,7 @@ python src/segmentation_server.py
 ```
 
 **4. Access in your browser:**
+
 ```
 http://<JETSON_IP>:5001
 ```
@@ -333,23 +341,27 @@ Browse available models at: **https://ollama.com/search**
 Model names follow the format: `model_name:parameters-variant-quantization`
 
 Example: `gemma3:4b-it-q4_K_M`
+
 - **gemma3** - Model name/family
 - **4b** - Number of parameters (4 billion)
 - **it** - Instruction-tuned variant
 - **q4_K_M** - Quantization method (4-bit, K-quant, Medium precision)
 
 **Common parameter sizes for Jetson Orin Nano 8GB:**
+
 - **1b-3b** - Very fast, good for simple tasks
 - **4b-7b** - Balanced performance and quality (recommended)
 - **8b-13b** - Slower but higher quality (may require aggressive quantization)
 
 **Quantization types (lower bits = faster but less accurate):**
+
 - **Q4_K_M** - 4-bit, medium quality (good balance)
 - **Q4_K_S** - 4-bit, small/fast
 - **Q5_K_M** - 5-bit, better quality
 - **Q8_0** - 8-bit, high quality but larger
 
 **Recommended models for Jetson Orin Nano:**
+
 ```bash
 ollama pull gemma3:4b           # Google's efficient 4B model
 ollama pull phi3:3.8b           # Microsoft's compact model
@@ -388,6 +400,7 @@ sudo docker run -d --network=host \
 Access at `http://<JETSON_IP>:8080`
 
 **Storage Requirements:**
+
 - Ollama container: ~7GB
 - Model sizes: 2GB-8GB per model
 - Recommended: NVMe SSD with 64GB+ free space
@@ -412,6 +425,7 @@ python3 -m nano_llm.chat --api mlc \
 ```
 
 **Model Details:**
+
 - **VILA 1.5-3B** - Efficient vision-language model optimized for edge devices
 - **Parameters:** 3 billion (good balance for Jetson Orin Nano 8GB)
 - **Capabilities:** Image understanding, visual question answering, image captioning
@@ -450,6 +464,7 @@ When prompted, provide the image path and ask questions:
 ![VLM Fruit Detection Example](resources/vlm_fruit_orange_detected.png)
 
 The model correctly identifies the fruit as an orange, demonstrating its visual understanding capabilities. Performance metrics show efficient inference on the Jetson Orin Nano:
+
 - **Prefill rate:** 266.97 tokens/sec
 - **Decode rate:** 23.10 tokens/sec
 
@@ -486,6 +501,7 @@ jetson-containers run $(autotag nano_llm) \
 ```
 
 **Storage Requirements:**
+
 - nano_llm container: ~8GB
 - VILA 1.5-3B model: ~6GB
 - Obsidian 3B model: ~6GB
@@ -527,6 +543,7 @@ trt_model = YOLO("yolo11n.engine")
 The TensorRT engine (`yolo11n.engine`) provides significant performance improvements on Jetson hardware compared to the original PyTorch model.
 
 **Model files in this repo:**
+
 - `models/yolo11n.pt` - Original PyTorch model (5.6 MB)
 - `models/yolo11n.onnx` - ONNX intermediate format (10.7 MB)
 - `models/yolo11n.engine` - TensorRT optimized for Jetson (12.5 MB)
@@ -544,6 +561,7 @@ python src/video_detector.py street_footage.mp4 detected_street.mp4
 ```
 
 **Detected object classes:**
+
 - Vehicles: car, bus, truck, motorcycle, bicycle
 - Pedestrians: person
 - Traffic infrastructure: traffic light, stop sign
@@ -556,7 +574,7 @@ This section demonstrates how to train YOLO11n-seg on custom racetrack datasets 
 
 **Dataset Preparation:**
 
-The training dataset was sourced from [Roboflow's Autonomous Driving Challenge - Racetrack dataset](https://universe.roboflow.com/autonomous-driving-challenge/racetrack). The dataset was imported into a Roboflow project workspace, which allows for easy annotation management, augmentation, and export. From the Roboflow project, the dataset was exported in **YOLOv11 format**, which is directly compatible with Ultralytics YOLO training.
+The training dataset was sourced from [Roboflow&#39;s Autonomous Driving Challenge - Racetrack dataset](https://universe.roboflow.com/autonomous-driving-challenge/racetrack). The dataset was imported into a Roboflow project workspace, which allows for easy annotation management, augmentation, and export. From the Roboflow project, the dataset was exported in **YOLOv11 format**, which is directly compatible with Ultralytics YOLO training.
 
 **Training Script:**
 
@@ -588,21 +606,45 @@ Training on the Jetson Orin Nano's limited GPU memory (8GB shared with system) c
 - **`workers`** - Reduce number of dataloader workers (e.g., from 6 to 4 or 2) to lower CPU memory usage.
 - **`amp`** - Keep `True` for Automatic Mixed Precision, which uses FP16 to reduce memory consumption.
 
-**Important:** Always clear GPU cache before training (see Performance Optimization section above):
-```bash
-sudo sysctl vm.drop_caches=3
-```
+**Important:** Always clear GPU cache before training (see Performance Optimization section above)
 
 **Training Progress:**
 
 ![YOLO Training Epochs](resources/epochs.png)
 
-The training metrics show the model's learning progression over 100 epochs. Key observations:
+The training metrics show the model's learning progression over 100 epochs:
+
 - **box_loss** (bounding box regression) decreases from ~1.3 to ~0.94, indicating improved object localization
 - **seg_loss** (segmentation mask) decreases from ~2.5 to ~1.69, showing better pixel-level segmentation
 - **cls_loss** (classification) drops from ~2.9 to ~0.89, demonstrating improved class prediction accuracy
 
 Training speed on the Jetson Orin Nano averages **3.9-4.0 iterations/second**, with each epoch completing in approximately **1-2 minutes**. For the full 100-epoch training run, expect a total training time of roughly **2.5-3.5 hours**, depending on dataset size and system load.
+
+**Training Results:**
+
+![Training Results](resources/training_results.png)
+
+Final metrics: Precision 0.938, Recall 0.929, mAP50 0.957, mAP50-95 0.711
+
+**Confusion Matrix:**
+
+![Confusion Matrix Normalized](resources/confusion_matrix_normalized.png)
+
+Class accuracy: racetrack 0.92, ego_vehicle 0.96
+
+#### F1 Racetrack Segmentation
+
+![F1 Racetrack Segmentation](resources/f1_lap_segmented.gif)
+
+*Trained model detecting racetrack surface and ego vehicle*
+
+**Usage:**
+
+```bash
+python src/formula_1_segmentation.py <input_video.mp4>
+```
+
+Detects class 10 (racetrack) and class 3 (ego_vehicle) using `racetrack_model.engine`.
 
 ## License
 
