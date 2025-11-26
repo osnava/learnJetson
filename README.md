@@ -569,15 +569,11 @@ python src/video_detector.py street_footage.mp4 detected_street.mp4
 
 The detector filters YOLO's 80 classes to focus only on objects relevant for self-driving scenarios.
 
-<<<<<<< HEAD
 ### 5. Formula 1
 
 Computer vision applications for Formula 1 racing, including track segmentation, barrier detection, and onboard footage analysis.
 
 #### Training Custom YOLO Models for F1 Racing
-=======
-#### Training Custom YOLO Models for Autonomous Driving
->>>>>>> 33e8a24fed740d80ada165fa03280c7d93dc56bb
 
 This section demonstrates how to train YOLO11n-seg on custom racetrack datasets for autonomous racing applications.
 
