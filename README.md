@@ -1,6 +1,6 @@
 # Jetson Orin Nano AI Development
 
-This repository contains AI/ML development projects and deployment configurations for the NVIDIA Jetson Orin Nano, including vision processing, LLM inference, and self-driving applications.
+This repository contains AI/ML development projects and deployment configurations for the NVIDIA Jetson Orin Nano, including vision processing, LLM inference, self-driving applications, and Formula 1 computer vision.
 
 ---
 
@@ -12,6 +12,7 @@ This repository contains AI/ML development projects and deployment configuration
 [![LLM](https://img.shields.io/badge/LLM_Inference-purple?style=for-the-badge)](#2-llm-inference-local-language-models)
 [![VLM](https://img.shields.io/badge/Vision_Language-red?style=for-the-badge)](#3-vision-language-models-vlms)
 [![Self-Driving](https://img.shields.io/badge/Self--Driving-yellow?style=for-the-badge)](#4-self-driving-applications)
+[![Formula1](https://img.shields.io/badge/Formula_1-crimson?style=for-the-badge)](#5-formula-1)
 
 </div>
 
@@ -568,7 +569,11 @@ python src/video_detector.py street_footage.mp4 detected_street.mp4
 
 The detector filters YOLO's 80 classes to focus only on objects relevant for self-driving scenarios.
 
-## Training Custom YOLO Models for Autonomous Driving
+### 5. Formula 1
+
+Computer vision applications for Formula 1 racing, including track segmentation, barrier detection, and onboard footage analysis.
+
+#### Training Custom YOLO Models for F1 Racing
 
 This section demonstrates how to train YOLO11n-seg on custom racetrack datasets for autonomous racing applications.
 
