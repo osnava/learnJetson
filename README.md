@@ -649,12 +649,131 @@ python src/formula_1_segmentation.py <input_video.mp4>
 Detects class 10 (racetrack) and class 3 (ego_vehicle) using `racetrack_model.engine`.
 
 **Model classes:**
+
 ```python
 ['car', 'cross_parking_free', 'cross_parking_occupied', 'ego_vehicle', 'finish_line',
  'obstacle', 'person', 'pitlane', 'pitlane_entry', 'pitlane_exit', 'racetrack',
  'trafficlight_green', 'trafficlight_off', 'trafficlight_red', 'trafficlight_yellow',
  'trafficlight_yellow_red', 'vertical_parking_free', 'vertical_parking_occupied']
 ```
+
+#### F1 Onboard Instance Segmentation with Roboflow
+
+This section demonstrates training a custom instance segmentation model using Roboflow, then deploying it on the Jetson Orin Nano for real-time inference.
+
+**Dataset Collection:**
+
+The training dataset was curated from F1 onboard camera footage across **3 different circuits** and **3 different drivers** to ensure diverse racing conditions:
+
+- **Circuits:**
+
+  - Italian GP (Monza)
+  - Jeddah Street Circuit
+  - Mexico City GP (Autódromo Hermanos Rodríguez)
+- **Drivers:**
+
+  - Lewis Hamilton
+  - Sergio Pérez
+  - Lando Norris
+
+This diversity helps the model generalize across different track layouts, lighting conditions, and camera angles.
+
+**Fast Annotation with SAM 3:**
+
+For efficient annotation, we used **Segment Anything 3 (SAM 3)**, Meta's latest zero-shot segmentation model. SAM 3 revolutionizes the annotation process by allowing **text-based prompts** for object detection and segmentation.
+
+**Key SAM 3 features:**
+
+- **Text prompts:** Provide prompts like "racing track" or "car" and SAM 3 generates precise segmentation masks
+- **Hover-to-segment:** Hover over an object to instantly generate segmentation masks
+- **Zero-shot capability:** Works without fine-tuning on your specific dataset
+- **Roboflow integration:** Built directly into Roboflow's Label Assist and Smart Select tools
+
+Using SAM 3's text prompts significantly accelerated the annotation process compared to manual polygon drawing, reducing annotation time by up to 10x while maintaining high accuracy.
+
+**Learn more about SAM 3:**
+
+- [What Is Segment Anything 3 (SAM 3)?](https://blog.roboflow.com/what-is-sam3/)
+
+**Model Details:**
+
+View the trained model at: [F1 Onboard Model v3 on Roboflow](https://app.roboflow.com/selfdriving-gcbsx/f1onboard-vpltc/models/f1onboard-vpltc/3)
+
+**Model Capabilities:**
+
+The model performs instance segmentation on the following racing elements:
+
+- **Racetrack**
+- **Kerbs**
+- **Barriers**
+- **Ego Vehicle**
+
+<img src="resources/norris_segmentation_result.png" width="60%" alt="Segmentation Result Example">
+
+*Example segmentation output showing detected racetrack, kerbs, barriers, and ego vehicle*
+
+**Deployment on Jetson Orin Nano:**
+
+The model is deployed using Roboflow's inference server with NVIDIA runtime support and TensorRT optimization.
+
+**First time - create and run the container:**
+
+```bash
+sudo docker run -d \
+    --name inference-server \
+    --runtime nvidia \
+    --read-only \
+    -p 9001:9001 \
+    --volume ~/.inference/cache:/tmp:rw \
+    --security-opt="no-new-privileges" \
+    --cap-drop="ALL" \
+    --cap-add="NET_BIND_SERVICE" \
+    -e ONNXRUNTIME_EXECUTION_PROVIDERS="[TensorrtExecutionProvider,CUDAExecutionProvider,CPUExecutionProvider]" \
+    roboflow/roboflow-inference-server-jetson-6.0.0:latest
+```
+
+**Subsequent runs - start the existing container:**
+
+```bash
+sudo docker start inference-server
+```
+
+**Container Features:**
+
+- **GPU acceleration:** Uses NVIDIA runtime with TensorRT and CUDA execution providers
+- **Port 9001:** HTTP API for inference requests
+- **Persistent cache:** Model weights cached locally for faster startup
+
+**Running Inference:**
+
+Create a Python virtual environment and install dependencies:
+
+```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install inference-sdk opencv-python supervision
+```
+
+Run the inference script (`src/roboflow_inference.py`):
+
+```bash
+python src/roboflow_inference.py
+```
+
+**Development Process:**
+
+![Roboflow Inference Debug](resources/code_debug_roboflow.gif)
+
+*Testing and debugging the Roboflow inference pipeline*
+
+**Final Result:**
+
+![F1 Las Vegas Segmentation](resources/lasvegasnor4_segmented.gif)
+
+*Real-time instance segmentation on F1 Las Vegas onboard footage, detecting racetrack, kerbs, barriers, and ego vehicle*
 
 ## License
 
