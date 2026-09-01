@@ -5,15 +5,23 @@
 This repository contains AI/ML development projects and deployment configurations for the NVIDIA Jetson Orin Nano, including vision processing, LLM inference, self-driving applications, and Formula 1 computer vision.
 
 <p>
-  <a href="#prerequisites"><img src="https://img.shields.io/badge/Prerequisites-hardware-76B900?style=for-the-badge&logo=nvidia&logoColor=white" alt="Prerequisites" /></a>
-  <a href="#jetson-configuration"><img src="https://img.shields.io/badge/Configuration-jetson%20setup-E95420?style=for-the-badge&logo=linux&logoColor=white" alt="Jetson configuration" /></a>
-  <a href="#1-vision-processing-object-detection"><img src="https://img.shields.io/badge/Vision-object%20detection-F97316?style=for-the-badge&logo=opencv&logoColor=white" alt="Vision processing" /></a>
-  <a href="#2-llm-inference-local-language-models"><img src="https://img.shields.io/badge/LLM-ollama-8B5CF6?style=for-the-badge&logo=ollama&logoColor=white" alt="LLM inference" /></a>
-  <a href="#3-vision-language-models-vlms"><img src="https://img.shields.io/badge/VLM-VILA%201.5-FFD21E?style=for-the-badge&logo=huggingface" alt="Vision-language models" /></a>
-  <a href="#4-self-driving-applications"><img src="https://img.shields.io/badge/Self--driving-YOLO11n-F59E0B?style=for-the-badge" alt="Self-driving" /></a>
-  <a href="#5-formula-1"><img src="https://img.shields.io/badge/Formula%201-racetrack%20segmentation-E10600?style=for-the-badge&logo=f1&logoColor=white" alt="Formula 1" /></a>
-  <a href="docs/troubleshooting/README.md"><img src="https://img.shields.io/badge/Troubleshooting-runbooks-DC2626?style=for-the-badge" alt="Troubleshooting" /></a>
-  <a href="agent/AGENTS.md"><img src="https://img.shields.io/badge/AI%20agent-AGENTS.md-191919?style=for-the-badge" alt="AI agent guide" /></a>
+  <a href="#prerequisites"><img src="https://img.shields.io/badge/Prerequisites-0969DA?style=for-the-badge" alt="Prerequisites" /></a>
+  &nbsp;
+  <a href="#jetson-configuration"><img src="https://img.shields.io/badge/Configuration-0969DA?style=for-the-badge" alt="Configuration" /></a>
+  &nbsp;
+  <a href="#1-vision-processing-object-detection"><img src="https://img.shields.io/badge/Vision-0969DA?style=for-the-badge" alt="Vision" /></a>
+  &nbsp;
+  <a href="#2-llm-inference-local-language-models"><img src="https://img.shields.io/badge/LLM-0969DA?style=for-the-badge" alt="LLM" /></a>
+  &nbsp;
+  <a href="#3-vision-language-models-vlms"><img src="https://img.shields.io/badge/VLM-0969DA?style=for-the-badge" alt="VLM" /></a>
+  &nbsp;
+  <a href="#4-self-driving-applications"><img src="https://img.shields.io/badge/Self--Driving-0969DA?style=for-the-badge" alt="Self-driving" /></a>
+  &nbsp;
+  <a href="#5-formula-1"><img src="https://img.shields.io/badge/F1-0969DA?style=for-the-badge" alt="Formula 1" /></a>
+  &nbsp;
+  <a href="docs/troubleshooting/README.md"><img src="https://img.shields.io/badge/Troubleshooting-0969DA?style=for-the-badge" alt="Troubleshooting" /></a>
+  &nbsp;
+  <a href="agent/AGENTS.md"><img src="https://img.shields.io/badge/Agent-0969DA?style=for-the-badge" alt="Agent" /></a>
 </p>
 
 <img src="resources/jetson_hw_setup.gif" alt="Jetson Orin Nano hardware setup" width="820" />
