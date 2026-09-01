@@ -592,7 +592,21 @@ The TensorRT engine (`yolo11n.engine`) provides significant performance improvem
 
 - `models/yolo11n.pt` - Original PyTorch model (5.6 MB)
 - `models/yolo11n.onnx` - ONNX intermediate format (10.7 MB)
-- `models/yolo11n.engine` - TensorRT optimized for Jetson (12.5 MB)
+- `models/yolo11n.engine` - TensorRT FP16, built on-device (JetPack 6.2.2 / TRT 10.3) — 8.6 MB
+- `models/yolo11n-int8.engine` - INT8 variant, 5.6 MB, +27.6% throughput (see [INT8 benchmarks](docs/performance/int8-tensorrt-engines.md))
+
+⚠️ **Portability:** serialized TensorRT engines load only on the TensorRT
+version and GPU architecture that built them. On any other machine, rebuild on
+the device from the committed `.pt` / `.onnx` sources:
+
+```bash
+yolo export model=models/yolo11n.pt format=engine device=0
+```
+
+The same applies to `models/yolo11n-seg.engine` and `models/racetrack_model.engine`.
+Build with `yolo export` (not bare `trtexec --saveEngine`) — ultralytics
+engines need the metadata header `yolo export` writes, without it task
+inference fails.
 
 ### Processing videos with object detection
 
@@ -659,8 +673,6 @@ Training on the Jetson Orin Nano's limited GPU memory (8GB shared with system) c
 - **`cache`** - Change from `'ram'` to `False` to avoid caching images in memory, or use `'disk'` for disk caching.
 - **`workers`** - Reduce number of dataloader workers (e.g., from 6 to 4 or 2) to lower CPU memory usage.
 - **`amp`** - Keep `True` for Automatic Mixed Precision, which uses FP16 to reduce memory consumption.
-
-**Important:** Always clear GPU cache before training (see Performance Optimization section above)
 
 **Training Progress:**
 
