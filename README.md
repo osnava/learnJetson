@@ -177,12 +177,10 @@ is applied at every boot by the custom `jetson_clocks.service` oneshot — see
 the [clocks/fan runbook](docs/troubleshooting/lock-clocks-fan-maxn-super.md)
 for the full design and verification steps.
 
-⚠️ **Do not set a fan profile from jtop** (CTRL → cool/other profiles): jtop's
-saved profiles re-enable `nvfancontrol`, which fights the boot-time lock and
-steals the fan back. Fan management in jtop is deliberately disarmed on this
-machine (the `fan` section is removed from `/usr/local/jtop/config.json`) —
-if you ever re-add it, stop jtop first, edit the config, and expect the lock
-to lose. Use jtop pages 1–4 as a *monitor* only.
+⚠️ **Do not set a fan profile from jtop**: its saved profiles re-enable
+`nvfancontrol`, which fights the boot-time lock. jtop's fan controls are
+deliberately disarmed on this machine (`fan` removed from
+`/usr/local/jtop/config.json`) — use jtop as a *monitor* only.
 
 Verify the lock is active after boot: `sudo jetson_clocks --show` should list
 max clocks and fan PWM 255; sustained loads (e.g. a 10-minute `trtexec` run)
@@ -190,13 +188,11 @@ should show zero clock dips and GPU ≤ ~60 °C.
 
 #### Memory cache: clear it for builds and big loads — not for every run
 
-On Jetson's unified memory, the kernel reclaims file cache automatically
-whenever a normal allocation needs it — so clearing cache before ordinary
-inference buys nothing and just forces cold re-reads of the files your server
-is about to load. The real consumer of this trick is **TensorRT tactic
-autotuning**: it never allocates, it *checks free memory per tactic and skips
-tactics that don't fit* (`Tactic Device request: XM Available: 0MB`), so a
-multi-GB page cache (e.g. after dataset downloads) can fail an engine build
+On unified memory the kernel reclaims file cache automatically when
+allocations need it — clearing cache before ordinary inference buys nothing.
+The one real consumer is **TensorRT tactic autotuning**: it checks free
+memory per tactic and skips tactics that don't fit (`Tactic … Available:
+0MB` in the build log), so a multi-GB page cache can fail an engine build
 with no actual OOM.
 
 Clear it event-time, right before the operations that gate on free memory:
@@ -209,14 +205,11 @@ sync && sudo sysctl vm.drop_caches=3
   file churn that immediately precedes one).
 - Before **multi-GB model loads** (LLM containers: nano_llm, ollama).
 
-Do **not** bother before loading the YOLO engines (5–9 MB) or restarting the
-inference servers — the 5–9 MB engines don't need it, and the dropped cache
-is exactly the data they'd reuse. Never run it as a daemonized cleaner; that
-trades real file performance for a number in `free`.
+Skip it before YOLO engine loads (5–9 MB) or server restarts — the dropped
+cache is exactly the data they'd reuse. Never daemonize a cache cleaner.
 
-The structural fix (better than the ritual) is a persistent free-memory floor,
-which makes TensorRT's headroom checks pass at all times without dropping
-anything:
+The structural fix is a persistent free-memory floor, which makes TensorRT's
+headroom checks pass without dropping anything:
 
 ```bash
 echo vm.min_free_kbytes = 131072 | sudo tee /etc/sysctl.d/99-jetson-free-floor.conf
@@ -314,65 +307,39 @@ http://<JETSON_IP>:5000
 
 Replace `<JETSON_IP>` with your Jetson's IP address (e.g., `http://192.168.1.100:5000`)
 
-**Which model is being served?** The detection server loads the **INT8**
-TensorRT engine (`/ssd/yolo11n-int8.engine`) and falls back to the FP16 engine
-(`/ssd/yolo11n.engine`) if the INT8 file is missing. INT8 means the network's
-weights and activations are stored as 8-bit integers instead of 16-bit floats —
-on this board that costs ~1.5 mAP points of accuracy and buys ~28% more
-throughput (method and numbers in the
+**Which model is being served?** The detection server loads the INT8 engine
+(`/ssd/yolo11n-int8.engine`), falling back to FP16 if it's missing. INT8
+stores weights and activations as 8-bit integers instead of 16-bit floats:
+about 1.5 mAP points cheaper in accuracy, ~28% more throughput (see the
 [INT8 benchmarks](docs/performance/int8-tensorrt-engines.md)). The
-segmentation server loads `yolo11n-seg.engine` and stays on FP16: TensorRT
-10.3 on Orin currently has no INT8 implementation for one of the segmentation
-model's fused layers (the analysis is in the same document).
+segmentation server stays on FP16 (`yolo11n-seg.engine`) — TensorRT 10.3 on
+Orin cannot compile that model's segmentation layer in INT8 yet.
 
 ### How the web streaming works: one loop, many viewers
 
-Both servers stream video to your browser with **MJPEG**: the server sends an
-endless sequence of annotated JPEG frames over plain HTTP, and the browser
-renders each frame as it arrives — no video codec, no plugins, just images.
+The servers stream **MJPEG** — an endless sequence of annotated JPEG frames
+over plain HTTP; the browser renders each frame as it arrives.
 
-The design decision worth learning from (issue #9) is that **every viewer
-shares one background loop**. A single thread captures a frame → runs YOLO →
-draws the boxes/masks → encodes a JPEG → publishes it to a shared buffer.
-Each browser connected to `/video_feed` reads the latest frame from that
-buffer. Think of it as a TV broadcast: adding viewers doesn't add cameras or
-announcers, and a viewer on a slow connection just skips ahead to the newest
-frame instead of building up a growing backlog of old ones.
-
-Why this matters on a Jetson specifically:
-
-1. **The camera allows only one reader.** Linux's V4L2 camera interface is
-   single-reader — with a naive per-viewer design, the second browser tab
-   would get a frozen picture.
-2. **One TensorRT engine, one thread.** Calling the same engine from several
-   viewer threads concurrently is a thread-safety hazard.
-3. **Inference cost stays flat as viewers join.** Measured with a 1080p50
-   test file: ~27 fps for detection and ~16.5 fps for segmentation, whether
-   1 or 3 viewers are watching. The previous per-viewer design ran inference
-   once per viewer — about 2.6× the GPU work at 3 viewers.
-
-Things you'll use in practice:
-
-**Health check** — open `http://<JETSON_IP>:5000/stats` (detection) or
-`http://<JETSON_IP>:5001/stats` (segmentation):
-
-```json
-{"server_fps": 27.1, "viewers": 2, "source": "0", "last_frame_ts": 1756723201.2}
-```
-
-**No camera attached?** Point the `SOURCE` environment variable at any video
-file — it loops forever, which makes the pipeline testable and benchmarkable
-without hardware (this is exactly how the servers were benchmarked):
+Every viewer shares **one background loop** (issue #9): a single thread
+captures → runs YOLO → encodes → publishes the newest JPEG to a shared
+buffer, and every browser on `/video_feed` reads from that buffer — like a
+TV broadcast, where extra viewers add no cameras or announcers. This avoids
+two Jetson hazards (V4L2 cameras allow a single reader; a TensorRT engine is
+safest called from one thread) and keeps inference cost flat: ~27 fps
+(detection) / ~16.5 fps (segmentation) at 1080p whether 1 or 3 viewers
+watch, versus ~2.6× the GPU work before the restructure.
 
 ```bash
+# Health check (detection :5000, segmentation :5001):
+http://<JETSON_IP>:5000/stats   # {"server_fps": 27.1, "viewers": 2, "source": "0", ...}
+
+# No camera? Any video file works as the source and loops forever:
 SOURCE=/ssd/videos/street_footage.mp4 python src/detection_server.py
+# SOURCE=1 selects a second camera (default: 0)
 ```
 
-`SOURCE=1` selects a second camera; the default `0` is the first one.
-
-**Stalled streams end cleanly** — if the capture loop stalls (camera
-unplugged, file removed), each viewer's stream closes after 10 seconds
-instead of hanging forever.
+If the capture loop stalls (camera unplugged, file removed), each viewer's
+stream closes after 10 s instead of hanging forever.
 
 **Example applications:**
 
@@ -562,22 +529,14 @@ python3 -m nano_llm.chat --api mlc \
 - **Parameters:** 3 billion (good balance for Jetson Orin Nano 8GB)
 - **Capabilities:** Image understanding, visual question answering, image captioning
 
-**Usage:**
-The model accepts both text prompts and images, allowing you to ask questions about visual content. Perfect for applications requiring visual understanding combined with natural language processing.
+**Usage:** the model accepts both text prompts and images, so you can ask questions about visual content.
 
 **Example - Fruit Detection:**
 
-Inside the container, download a test image and ask the VLM about it:
+Inside the container, download a test image, start the same chat session as in step 2, and ask the VLM about it:
 
 ```bash
-# Download test image inside the container
 wget https://raw.githubusercontent.com/dusty-nv/jetson-inference/master/data/images/orange_0.jpg
-
-# Run VILA with the image and ask a question
-python3 -m nano_llm.chat --api mlc \
-  --model Efficient-Large-Model/VILA1.5-3b \
-  --max-context-len 256 \
-  --max-new-tokens 32
 ```
 
 **Input Image (downloaded via wget inside container):**
@@ -711,30 +670,18 @@ python src/video_detector.py street_footage.mp4 detected_street.mp4
 python src/video_detector.py street_footage.mp4 preview.mp4 300
 ```
 
-The script loads the INT8 engine (`yolo11n-int8.engine`) by default. It
-prints the video's codec, resolution and frame count before starting, shows
-the decode path it chose, and ends with an end-to-end fps summary — handy
-for comparing setups.
+The script loads the INT8 engine by default, prints the video's codec and
+dimensions up front, and reports end-to-end fps when done.
 
-**A Jetson lesson in video decoding:** the Orin Nano has a dedicated hardware
-decoder (NVDEC) for H.264/H.265, and `video_detector.py` prefers it — but
-only when the installed OpenCV supports in-process GStreamer
-(`cv2.VideoCapture(..., cv2.CAP_GSTREAMER)`). The pip OpenCV in the
-ultralytics container is built *without* GStreamer, so there the script falls
-back to **software** decoding — which, counterintuitively, is the faster
-option on this stack: software 1080p50 decode runs at ~180 fps using ~0.2
-CPU cores, while piping frames in from an external GStreamer process costs
-more than the decode it offloads. The lesson: a hardware accelerator only
-helps when the data path to it is cheap.
-
-```bash
-# Force software decode (benchmark baseline / debugging)
-JETSON_NVDEC=0 python src/video_detector.py street_footage.mp4 detected_street.mp4
-```
-
-Note there is **no hardware encoder** (NVENC) on this module, so writing the
-output MP4 always runs on the CPU. Full benchmarks and reasoning:
-[NVDEC hardware decode notes](docs/performance/nvdec-decode-notes.md).
+**Decode path (a Jetson lesson):** the script prefers NVDEC hardware decode,
+but only when OpenCV supports in-process GStreamer — and the pip OpenCV in
+the ultralytics container doesn't. There it falls back to software decode,
+which is *faster* on this stack: 1080p50 software decode runs at ~180 fps
+(~0.2 CPU cores), while piping frames from an external GStreamer process
+costs more than the decode it offloads. A hardware accelerator only helps
+when the data path to it is cheap. Force software with `JETSON_NVDEC=0`;
+there is no hardware encoder (NVENC), so the output writer stays on the CPU.
+Full data: [NVDEC hardware decode notes](docs/performance/nvdec-decode-notes.md).
 
 **Detected object classes:**
 
