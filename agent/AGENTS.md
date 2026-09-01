@@ -67,3 +67,17 @@ is a safe, repeatable statement — for the owner and for anyone adopting this r
 | `jetson.sh` | find / ssh / status / health / logs / dropcache — the agent's hands |
 | `inventory.md` | real IPs/MACs/UUIDs (**gitignored — never commit**) |
 | `inventory.example.md` | template for the above |
+
+## Repo hygiene on Windows (line endings + exec bits)
+
+Line endings are governed by `.gitattributes` (`* text=auto eol=lf`): every
+clone keeps LF working trees, so Windows/WSL/Linux copies never produce
+phantom whole-file diffs. Two Windows-specific hazards remain:
+
+- **The executable bit doesn't exist on NTFS.** A file rewritten by a Windows
+  tool loses `mode 100755` (this bit `agent/jetson.sh` once). Check with
+  `git ls-files -s agent/jetson.sh`, restore with
+  `git update-index --chmod=+x agent/jetson.sh` — git stores the bit even
+  though the Windows filesystem can't show it.
+- **Don't edit the same files from WSL and Windows simultaneously** — the
+  WSL clone is retired anyway (Windows clone is primary).

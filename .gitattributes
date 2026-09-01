@@ -1,0 +1,18 @@
+# One canonical form: LF in the repository AND in every working tree.
+# This repo deploys to Linux (Jetson); CRLF working copies caused phantom
+# whole-file diffs between the Windows and WSL/Linux clones (issue #11).
+* text=auto eol=lf
+
+# Shell scripts must never gain CRLF ("\r: command not found" on the Jetson).
+*.sh text eol=lf
+
+# Binaries: never normalize, never text-diff
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.mp4 binary
+*.pt binary
+*.onnx binary
+*.engine binary
+*.cache binary
