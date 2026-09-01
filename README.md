@@ -226,15 +226,43 @@ sudo sysctl -w vm.min_free_kbytes=131072
 Keep it at 128–256 MB on this 8 GB board — a floor that is too high reserves
 memory nothing can use and can itself cause OOM kills.
 
+#### Service memory policy — one heavy service at a time ("inference mode")
+
+Everything shares one 8 GB CPU/GPU heap, so the limiting resource is not disk
+or CPU — it is resident memory of concurrently running services. Two
+torch/TensorRT stacks at once ≈ swap thrashing and inference latency collapse.
+
+| Service | Image | ~Resident | Runs alongside YOLO inference? |
+|---|---|---|---|
+| YOLO detect/seg servers | `ultralytics/ultralytics:latest-jetson-jetpack6` | 2–3 GB | — (this *is* the baseline) |
+| Agent ops (cache drop, sysctl) | `alpine:latest` (8 MB) | negligible | ✅ always fine |
+| Roboflow inference server (F1 demo, §5) | `roboflow/roboflow-inference-server-jetson-6.0.0` | 2–4 GB | ⚠️ only for that demo, not with both YOLO servers |
+| LLM / VLM serving (`nano_llm`, ollama + WebUI, §2–3) | `dustynv/nano_llm`, ollama images | 6–8 GB with model loaded | ❌ never — run exclusively |
+
+Pruned 2026-09-01 (issue #12): the idle Roboflow (16.8 GB) and `nano_llm`
+(30.6 GB) images were removed — re-pull them with the run commands in §5 / §3
+when needed (for `nano_llm`, pick a tag matching the current L4T release).
+
+**Entering inference mode** (before demos, benchmarks, engine builds):
+
+```bash
+docker ps                 # anything running that isn't the inference server?
+docker stop <name>        # stop it — see the table above
+free -m                   # ~6 GB available before loading models
+```
+
+Memory layout in place on this machine: headless multi-user target (no GUI),
+6 × zram (~3.8 GB) plus a 16 GB swapfile on `/ssd`, and the
+`vm.min_free_kbytes` floor from the section above. Swap is a safety net —
+if `free -m` shows heavy swap-in during inference, a second heavy service is
+running and should be stopped.
+
 Already in place on this machine (see the
 [RAM optimization guide](https://www.jetson-ai-lab.com/tips_ram-optimization.html)):
 headless multi-user target, 16 GB swapfile on `/ssd` plus zram, and the
 free-memory floor applied at `/etc/sysctl.d/99-jetson-free-floor.conf`
 (128 MB, 2026-09-01 — verified to hold under 4 GB of allocation pressure).
-The remaining
-hygiene rule: stop heavyweight containers you don't need before building
-engines — each `ultralytics` container holds ~2–3 GB of Python/torch resident
-against the same 8 GB everything else shares.
+Which services may run together is the section right below.
 
 ---
 
