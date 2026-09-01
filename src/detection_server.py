@@ -1,10 +1,17 @@
+from pathlib import Path
+
 from flask import Flask, Response
 import cv2
 from ultralytics import YOLO
 
 app = Flask(__name__)
 
-model = YOLO('/ssd/yolo11n-int8.engine')  # INT8 (issue #7): +28% throughput, -1.5pt mAP50-95 vs FP16; FP16 fallback: /ssd/yolo11n.engine
+# INT8 engine (issue #7): +28% throughput at -1.5pt mAP50-95 — numbers and method in
+# docs/performance/int8-tensorrt-engines.md. Falls back to the FP16 engine if absent.
+ENGINE_INT8 = Path("/ssd/yolo11n-int8.engine")
+ENGINE_FP16 = Path("/ssd/yolo11n.engine")
+
+model = YOLO(str(ENGINE_INT8 if ENGINE_INT8.exists() else ENGINE_FP16))
 
 def generate_frames():
     camera = cv2.VideoCapture(0)

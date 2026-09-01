@@ -9,9 +9,9 @@
 
 | Model | INT8 status | Verdict |
 |---|---|---|
-| `yolo11n` (detect) | ✅ built, calibrated on COCO val | **Switched** (detection server + det scripts now load `/ssd/yolo11n-int8.engine`) |
+| `yolo11n` (detect) | ✅ built, calibrated on COCO val | **Switched**: `src/detection_server.py` (with runtime FP16 fallback), `src/video_detector.py` default, and Jetson-side `detect.py`/`detectClean.py` now load `/ssd/yolo11n-int8.engine` |
 | `yolo11n-seg` | ❌ build blocked | Stays FP16 — TensorRT 10.3 tactic gap (see below) |
-| `racetrack_model` (seg, imgsz 416) | ❌ build blocked | Stays FP16 — same gap; calibration cache banked for a post-upgrade retry |
+| `racetrack_model` (seg, imgsz 416) | ❌ build blocked | Stays FP16 — same gap; **train-split** calibration cache banked for a post-upgrade retry |
 
 INT8 on the Orin Nano (Ampere iGPU, no DLA) delivered **+27.6 % throughput /
 −21.6 % mean latency** for the detection model at a **−1.5 pt mAP50-95** cost —
@@ -37,8 +37,11 @@ squarely inside the 20–30 % end-to-end gain the issue predicted.
 | yolo11n-seg FP16 (box / mask) | 0.643 | 0.539 / 0.512 | 0.387 / 0.321 | baseline only |
 | racetrack FP16 (box / mask) | 0.599 | 0.660 / 0.602 | 0.474 / 0.366 | baseline only |
 
-Visual spot-check (3 COCO images, conf > 0.35): identical class sets FP16 vs
-INT8, confidences within ±0.2 — imperceptible for the webcam demo server.
+Visual spot-check (20 COCO val images, conf > 0.35): **14/20 images produce
+identical class sets**; on shared detections the mean confidence delta is
+**0.086**. The 6 differing images disagree only on borderline-confidence
+detections near the 0.35 cut (2 FP16-only vs 6 INT8-only class hits total) —
+consistent with the −1.5 pt mAP and imperceptible in the webcam demo stream.
 
 ## The seg-model INT8 blocker (TensorRT 10.3)
 
@@ -90,7 +93,14 @@ scripts live on the Jetson at `/ssd/int8/` so the retry is a 2-command job.
   `imgsz=416`, not the 640 default.
 - **INT8 calibration uses the `val` split** of `data=` (ultralytics
   `get_int8_calibration_dataloader`), batch 1, MinMax algorithm; the cache is
-  `<stem>.cache` next to the ONNX and is re-used verbatim on rebuilds.
+  `<stem>.cache` next to the ONNX and is re-used verbatim on rebuilds. The
+  racetrack cache was produced against the **train split** (3320 images) per
+  issue #7, via `Racetrack.v1i.yolov11/data-calib-train.yaml` (`val:` pointed
+  at `train/images` — ultralytics has no `split=` export arg).
+- **Old `models/*.engine` copies in this repo were TRT-8-era** (pre-JetPack
+  6.2.2) and could not deserialize on TensorRT 10.3 at all — they are not a
+  runnable FP16 baseline, which is why this change also refreshes them with
+  current builds (which additionally carry ultralytics metadata).
 - COCO auto-download pulls **train2017+test2017 too (~20 GB)** even though only
   val2017 (778 MB) is needed for calibration. Kill it after `val2017.txt`
   appears, or pre-seed `/ssd/datasets/coco/`.
@@ -117,6 +127,13 @@ docker run --rm --runtime nvidia -v /ssd:/ssd -v /ssd/datasets:/datasets \
   ultralytics/ultralytics:latest-jetson-jetpack6 \
   yolo export model=/ssd/int8/yolo11n-seg-int8.pt format=engine int8=True half=True \
   data=coco.yaml device=0
+
+# racetrack (train-split calibration cache already on disk):
+docker run --rm --runtime nvidia -v /ssd:/ssd -v /ssd/datasets:/datasets \
+  -v /ssd/int8/engine_patched.py:/ultralytics/ultralytics/utils/export/engine.py:ro \
+  ultralytics/ultralytics:latest-jetson-jetpack6 \
+  yolo export model=/ssd/int8/racetrack_model-int8.pt format=engine int8=True half=True \
+  data=/ssd/Racetrack.v1i.yolov11/data-calib-train.yaml device=0
 ```
 
 ## Reproducing the benchmarks

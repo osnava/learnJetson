@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
     input_video = sys.argv[1]
     output_video = sys.argv[2]
-    model_path = "yolo11n.engine"
+    model_path = "yolo11n-int8.engine"  # INT8 (issue #7); FP16 fallback: yolo11n.engine
 
     if not os.path.exists(input_video):
         print(f"Error: Input video {input_video} does not exist")
