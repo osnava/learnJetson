@@ -26,7 +26,10 @@ is a safe, repeatable statement — for the owner and for anyone adopting this r
 - Read-only diagnostics: `findmnt`, `lsblk`, `df`, `swapon`, `systemctl status/--failed`,
   `journalctl`, `docker ps/images/info`, `efibootmgr` (read), `nvtop/jetson_stats`.
 - Service control via the guarded surface: `systemctl restart|start|stop docker gdm`,
-  starting/stopping the project's own containers.
+  starting/stopping the project's own containers. These work non-interactively as
+  `sudo -n <cmd>` via the scoped sudoers drop-in (`/etc/sudoers.d/agent-toolkit`,
+  issue #15 — also covers `journalctl` and `docker`); no shared passwords.
+  Whitelisted verbs only: any other sudo still needs the owner.
 - Deploying/running code under `$HOME` and the project's own directories.
 
 ## Ask the human first
