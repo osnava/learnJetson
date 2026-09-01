@@ -38,10 +38,10 @@ This repository supports multiple AI/ML workloads. Choose the setup that matches
 
 - [Prerequisites](#prerequisites)
 - [Jetson configuration](#jetson-configuration) — [Connecting to the Jetson](#connecting-to-jetson) · [Headless mode](#disable-gui-to-free-gpu-memory) · [Performance optimization](#performance-optimization)
-- [1. Vision processing (object detection)](#1-vision-processing-object-detection) — [Instance segmentation](#instance-segmentation)
+- [1. Vision processing (object detection)](#1-vision-processing-object-detection) — [How the web streaming works](#how-the-web-streaming-works-one-loop-many-viewers) · [Instance segmentation](#instance-segmentation)
 - [2. LLM inference (local language models)](#2-llm-inference-local-language-models) — [Open WebUI](#optional-open-webui-chat-interface)
 - [3. Vision Language Models (VLMs)](#3-vision-language-models-vlms)
-- [4. Self-driving applications](#4-self-driving-applications)
+- [4. Self-driving applications](#4-self-driving-applications) — [Processing videos with object detection](#processing-videos-with-object-detection)
 - [5. Formula 1](#5-formula-1) — [Training custom YOLO models](#training-custom-yolo-models-for-f1-racing) · [F1 racetrack segmentation](#f1-racetrack-segmentation) · [Onboard segmentation with Roboflow](#f1-onboard-instance-segmentation-with-roboflow)
 - [Troubleshooting runbooks](docs/troubleshooting/README.md)
 - [INT8 TensorRT engine benchmarks](docs/performance/int8-tensorrt-engines.md)
@@ -251,18 +251,14 @@ docker stop <name>        # stop it — see the table above
 free -m                   # ~6 GB available before loading models
 ```
 
-Memory layout in place on this machine: headless multi-user target (no GUI),
-6 × zram (~3.8 GB) plus a 16 GB swapfile on `/ssd`, and the
-`vm.min_free_kbytes` floor from the section above. Swap is a safety net —
+Memory layout in place on this machine (build your own from the
+[RAM optimization guide](https://www.jetson-ai-lab.com/tips_ram-optimization.html)):
+headless multi-user target (no GUI), 6 × zram (~3.8 GB) plus a 16 GB swapfile
+on `/ssd`, and the 128 MB free-memory floor applied at
+`/etc/sysctl.d/99-jetson-free-floor.conf` (2026-09-01 — verified to hold
+under 4 GB of allocation pressure). Swap is a safety net, not extra speed:
 if `free -m` shows heavy swap-in during inference, a second heavy service is
 running and should be stopped.
-
-Already in place on this machine (see the
-[RAM optimization guide](https://www.jetson-ai-lab.com/tips_ram-optimization.html)):
-headless multi-user target, 16 GB swapfile on `/ssd` plus zram, and the
-free-memory floor applied at `/etc/sysctl.d/99-jetson-free-floor.conf`
-(128 MB, 2026-09-01 — verified to hold under 4 GB of allocation pressure).
-Which services may run together is the section right below.
 
 ---
 
@@ -318,11 +314,71 @@ http://<JETSON_IP>:5000
 
 Replace `<JETSON_IP>` with your Jetson's IP address (e.g., `http://192.168.1.100:5000`)
 
+**Which model is being served?** The detection server loads the **INT8**
+TensorRT engine (`/ssd/yolo11n-int8.engine`) and falls back to the FP16 engine
+(`/ssd/yolo11n.engine`) if the INT8 file is missing. INT8 means the network's
+weights and activations are stored as 8-bit integers instead of 16-bit floats —
+on this board that costs ~1.5 mAP points of accuracy and buys ~28% more
+throughput (method and numbers in the
+[INT8 benchmarks](docs/performance/int8-tensorrt-engines.md)). The
+segmentation server loads `yolo11n-seg.engine` and stays on FP16: TensorRT
+10.3 on Orin currently has no INT8 implementation for one of the segmentation
+model's fused layers (the analysis is in the same document).
+
+### How the web streaming works: one loop, many viewers
+
+Both servers stream video to your browser with **MJPEG**: the server sends an
+endless sequence of annotated JPEG frames over plain HTTP, and the browser
+renders each frame as it arrives — no video codec, no plugins, just images.
+
+The design decision worth learning from (issue #9) is that **every viewer
+shares one background loop**. A single thread captures a frame → runs YOLO →
+draws the boxes/masks → encodes a JPEG → publishes it to a shared buffer.
+Each browser connected to `/video_feed` reads the latest frame from that
+buffer. Think of it as a TV broadcast: adding viewers doesn't add cameras or
+announcers, and a viewer on a slow connection just skips ahead to the newest
+frame instead of building up a growing backlog of old ones.
+
+Why this matters on a Jetson specifically:
+
+1. **The camera allows only one reader.** Linux's V4L2 camera interface is
+   single-reader — with a naive per-viewer design, the second browser tab
+   would get a frozen picture.
+2. **One TensorRT engine, one thread.** Calling the same engine from several
+   viewer threads concurrently is a thread-safety hazard.
+3. **Inference cost stays flat as viewers join.** Measured with a 1080p50
+   test file: ~27 fps for detection and ~16.5 fps for segmentation, whether
+   1 or 3 viewers are watching. The previous per-viewer design ran inference
+   once per viewer — about 2.6× the GPU work at 3 viewers.
+
+Things you'll use in practice:
+
+**Health check** — open `http://<JETSON_IP>:5000/stats` (detection) or
+`http://<JETSON_IP>:5001/stats` (segmentation):
+
+```json
+{"server_fps": 27.1, "viewers": 2, "source": "0", "last_frame_ts": 1756723201.2}
+```
+
+**No camera attached?** Point the `SOURCE` environment variable at any video
+file — it loops forever, which makes the pipeline testable and benchmarkable
+without hardware (this is exactly how the servers were benchmarked):
+
+```bash
+SOURCE=/ssd/videos/street_footage.mp4 python src/detection_server.py
+```
+
+`SOURCE=1` selects a second camera; the default `0` is the first one.
+
+**Stalled streams end cleanly** — if the capture loop stalls (camera
+unplugged, file removed), each viewer's stream closes after 10 seconds
+instead of hanging forever.
+
 **Example applications:**
 
-- `src/detection_server.py` - Real-time camera detection with web streaming (Flask, port 5000)
+- `src/detection_server.py` - Real-time camera detection with web streaming (Flask, port 5000, INT8 engine with FP16 fallback)
 - `src/segmentation_server.py` - Instance segmentation with web interface (Flask, port 5001)
-- `src/video_detector.py` - Video file processing (command-line only)
+- `src/video_detector.py` - Video file processing with NVDEC/software decode selection (command-line only)
 
 ### Instance segmentation
 
@@ -645,12 +701,40 @@ inference fails.
 Use `video_detector.py` to process video files with self-driving relevant object detection:
 
 ```bash
-# Process a video file
-python src/video_detector.py <input_video.mp4> <output_video.mp4>
+# Process a video file (max_frames is optional — stop early for quick previews)
+python src/video_detector.py <input_video.mp4> <output_video.mp4> [max_frames]
 
-# Example
+# Example — full video
 python src/video_detector.py street_footage.mp4 detected_street.mp4
+
+# Example — first 300 frames only (fast iteration while tuning)
+python src/video_detector.py street_footage.mp4 preview.mp4 300
 ```
+
+The script loads the INT8 engine (`yolo11n-int8.engine`) by default. It
+prints the video's codec, resolution and frame count before starting, shows
+the decode path it chose, and ends with an end-to-end fps summary — handy
+for comparing setups.
+
+**A Jetson lesson in video decoding:** the Orin Nano has a dedicated hardware
+decoder (NVDEC) for H.264/H.265, and `video_detector.py` prefers it — but
+only when the installed OpenCV supports in-process GStreamer
+(`cv2.VideoCapture(..., cv2.CAP_GSTREAMER)`). The pip OpenCV in the
+ultralytics container is built *without* GStreamer, so there the script falls
+back to **software** decoding — which, counterintuitively, is the faster
+option on this stack: software 1080p50 decode runs at ~180 fps using ~0.2
+CPU cores, while piping frames in from an external GStreamer process costs
+more than the decode it offloads. The lesson: a hardware accelerator only
+helps when the data path to it is cheap.
+
+```bash
+# Force software decode (benchmark baseline / debugging)
+JETSON_NVDEC=0 python src/video_detector.py street_footage.mp4 detected_street.mp4
+```
+
+Note there is **no hardware encoder** (NVENC) on this module, so writing the
+output MP4 always runs on the CPU. Full benchmarks and reasoning:
+[NVDEC hardware decode notes](docs/performance/nvdec-decode-notes.md).
 
 **Detected object classes:**
 
