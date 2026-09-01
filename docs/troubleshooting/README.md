@@ -10,6 +10,7 @@ Prevention → Sources** — so both humans and AI agents can execute them step 
 |---|---|---|---|
 | 1 | Black screen with blinking cursor, no network, after a storage change or failed boots | [boot-black-screen-blinking-cursor.md](boot-black-screen-blinking-cursor.md) | ✅ Verified in the field |
 | 2 | Migrating the root filesystem from SD card to NVMe SSD without reflashing | [sd-to-nvme-rootfs-migration.md](sd-to-nvme-rootfs-migration.md) | ✅ Verified in the field |
+| 3 | Locking clocks + fan for sustained MAXN_SUPER inference (and the three services that steal the fan back) | [lock-clocks-fan-maxn-super.md](lock-clocks-fan-maxn-super.md) | ✅ Verified in the field |
 
 ## The three boot-failure tripwires (know these first)
 
