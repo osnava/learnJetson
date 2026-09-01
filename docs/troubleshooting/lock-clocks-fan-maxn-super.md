@@ -26,21 +26,17 @@ FAN Dynamic Speed Control=disabled hwmon0_pwm1=255
 NV Power Mode: MAXN_SUPER
 ```
 
-## Why naive persistence breaks: three fan claimants
+## Fast diagnosis: why naive persistence breaks — three fan claimants
 
 `jetson_clocks --fan` does the right thing for the current session: it stops `nvfancontrol`,
 switches the Tj thermal zone to `user_space` policy (disarming the **kernel thermal governor**),
 and writes 255 to every fan PWM node. But at the next boot, up to three things fight you back:
 
-1. **Kernel thermal governor** — if nothing sets the Tj zone to `user_space`, the kernel re-manages
-   the fan (observed: PWM dropping 255 → 88 at ~50 °C).
-2. **`nvfancontrol.service`** — enabled by default, restarts on its own schedule
-   (`Restart=on-failure`, plus journal evidence of re-activation seconds after a manual stop).
-3. **jtop (`jetson-stats` 4.3.2)** — the killer nobody suspects. Its `FanService.initialization()`
-   **re-applies the fan profile saved in `/usr/local/jtop/config.json` at every service start**
-   (a saved `cool` profile literally runs `systemctl start nvfancontrol`), and the daemon
-   **rewrites that config from observed state** — a manually-edited `speed: 100` came back as
-   `34.509…` (= PWM 88) after one boot.
+| Evidence | Likely cause | Confidence |
+|---|---|---|
+| PWM reads 255 right after boot, drifts down (~88 at ~50 °C) later | **Kernel thermal governor** — nothing set the Tj zone to `user_space`, so the kernel re-manages the fan | High |
+| `systemctl is-active nvfancontrol` flips back to `active` despite your stop | **`nvfancontrol.service`** — enabled by default, restarts on its own schedule (`Restart=on-failure`; journal shows re-activation seconds after a manual stop) | High |
+| `journalctl -b -u jtop` shows `Restart nvfancontrol With profile: "cool"` | **jtop (`jetson-stats` 4.3.x)** — its `FanService.initialization()` re-applies the fan profile saved in `/usr/local/jtop/config.json` at every service start (a saved `cool` profile literally runs `systemctl start nvfancontrol`), and the daemon rewrites that config from observed state — a manually-edited `speed: 100` came back as `34.509…` (= PWM 88) after one boot | High (source-verified) |
 
 The fix below disarms all three, then owns the fan from a single systemd unit.
 
@@ -54,8 +50,8 @@ sudo jetson_clocks --fan
 
 ### 2. Create the boot service
 
-No `jetson_clocks.service` ships with L4T R36.5, and the pre-created `/etc/systemd/system/jetson_clocks.service`
-may be a mask (symlink to `/dev/null`) — remove it first if so.
+No `jetson_clocks.service` ships with L4T R36.5; if a file exists at that path already, it is a
+leftover mask (symlink to `/dev/null`) — remove it first or your unit will read as "masked".
 
 ```bash
 sudo tee /etc/systemd/system/jetson_clocks.service > /dev/null <<'EOF'
@@ -93,6 +89,8 @@ stopping it loses to its restart behavior at next boot.
 
 ### 4. Disarm jtop's fan management
 
+jtop (`jetson-stats`) must be installed for this step and for `jtop` monitoring in general —
+4.3.2 was already present on this device; on a fresh one: `sudo pip3 install jetson-stats`.
 Stop the service first, **then** edit the config (the running daemon rewrites it from observed
 state):
 
@@ -113,23 +111,21 @@ Keep `"jetson_clocks": {"boot": true}` if present — jtop's own boot-time run o
 
 ### 5. Verify
 
-```bash
-systemctl is-active jetson_clocks.service   # active
-systemctl is-active nvfancontrol            # inactive (and disabled)
-sudo jetson_clocks --show | grep -E 'FAN|GPU Min|Power'
-# → FAN Dynamic Speed Control=disabled hwmon0_pwm1=255
-```
-
-Reboot and re-check several minutes after boot (jtop runs its delayed clock job ~43 s after its
-start; the fan must still read 255 then).
+See [Verification after recovery](#verification-after-recovery) — including the reboot re-check
+several minutes after boot (past jtop's delayed clock job).
 
 ## Validation record (2026-09-01)
 
 Workload: `trtexec --loadEngine=/ssd/racetrack_model.engine --duration=600` (TensorRT 10.3,
 YOLO-style engine, input 1x3x416x416) — **PASSED**, 318.2 qps, mean GPU compute 3.14 ms,
-599.4 s of continuous inference. Telemetry: 130 samples at 5 s intervals (CPU/GPU/SOC/Tj temps,
-per-core CPU freq, GPU/EMC freq via devfreq + bpmp debugfs, fan PWM). The first ~2 minutes ran
-two engines concurrently (worst case); the rest ran solo.
+599.4 s of continuous inference. Telemetry: a root sampler at 5 s cadence (CPU/GPU/SOC/Tj thermal
+zones, per-core CPU freq, GPU/EMC freq via devfreq + bpmp debugfs, fan PWM), cross-checked with
+`tegrastats`; jtop (its fan control disarmed per step 4) used for interactive spot checks. The
+first ~2 minutes ran two engines concurrently (worst case); the rest ran solo.
+
+**Reboot persistence** (the spec's second checklist item) was verified separately: across 5
+reboots (warm and cold) the boot service came up `active`, `nvfancontrol` never started, and the
+fan still read PWM 255 several minutes after boot — past jtop's delayed ~43 s clock job.
 
 | Metric | Result |
 |---|---|
@@ -144,6 +140,28 @@ two engines concurrently (worst case); the rest ran solo.
 
 Safe operating temps: with the fan pinned at 100 %, the board sits ~43 °C below thermal throttle
 under full sustained inference — enormous margin even in a warm enclosure.
+
+## Prevention
+
+- After any `apt upgrade` that touches `nvidia-l4t-*`, `nvfancontrol`, or reinstalls/updates
+  `jetson-stats`, re-run the step 5 verification: package updates can re-enable `nvfancontrol`
+  or restore a fan section in `/usr/local/jtop/config.json`.
+- Do not set a fan profile from the jtop UI unless you mean to — a GUI fan action writes the
+  `fan` section back into jtop's config, and step 4's fix silently reverts at the next boot.
+- The kernel governor claimant only re-arms if something resets the Tj zone policy; if PWM ever
+  drifts down again, check `cat /sys/class/thermal/thermal_zone*/policy` for `tj-thermal`.
+
+## Verification after recovery
+
+```bash
+systemctl is-active jetson_clocks.service   # active
+systemctl is-active nvfancontrol            # inactive (and disabled)
+sudo jetson_clocks --show | grep -E 'FAN|GPU Min|Power'
+# → FAN Dynamic Speed Control=disabled hwmon0_pwm1=255
+```
+
+Reboot and re-check several minutes after boot (jtop runs its delayed clock job ~43 s after its
+start; the fan must still read 255 then).
 
 ## Revert
 
