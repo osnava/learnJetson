@@ -13,6 +13,8 @@ This repository contains AI/ML development projects and deployment configuration
 [![VLM](https://img.shields.io/badge/Vision_Language-red?style=for-the-badge)](#3-vision-language-models-vlms)
 [![Self-Driving](https://img.shields.io/badge/Self--Driving-yellow?style=for-the-badge)](#4-self-driving-applications)
 [![Formula1](https://img.shields.io/badge/Formula_1-crimson?style=for-the-badge)](#5-formula-1)
+[![Troubleshooting](https://img.shields.io/badge/Troubleshooting-red?style=for-the-badge)](docs/troubleshooting/README.md)
+[![AI Agent](https://img.shields.io/badge/AI_Agent-black?style=for-the-badge)](agent/AGENTS.md)
 
 </div>
 

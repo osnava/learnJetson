@@ -6,3 +6,7 @@
 
 # Claude Code configuration
 .claude/
+
+# Jetson agent inventory — real IPs/MACs/UUIDs never go in a public repo
+agent/inventory.sh
+agent/inventory.md
