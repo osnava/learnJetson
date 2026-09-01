@@ -40,12 +40,13 @@ This repository supports multiple AI/ML workloads. Choose the setup that matches
 - [Jetson configuration](#jetson-configuration) — [Connecting to the Jetson](#connecting-to-jetson) · [Headless mode](#disable-gui-to-free-gpu-memory) · [Performance optimization](#performance-optimization)
 - [1. Vision processing (object detection)](#1-vision-processing-object-detection) — [How the web streaming works](#how-the-web-streaming-works-one-loop-many-viewers) · [Instance segmentation](#instance-segmentation)
 - [2. LLM inference (local language models)](#2-llm-inference-local-language-models) — [Open WebUI](#optional-open-webui-chat-interface)
-- [3. Vision Language Models (VLMs)](#3-vision-language-models-vlms)
+- [3. Vision Language Models (VLMs)](#3-vision-language-models-vlms) — [nano_llm / VILA (everything on the Jetson)](#nano_llm--vila-everything-on-the-jetson) · [Cosmos-Reason2-2B + vLLM (physical reasoning from the PC)](#cosmos-reason2-2b-with-vllm-physical-reasoning-driven-from-the-pc)
 - [4. Self-driving applications](#4-self-driving-applications) — [Processing videos with object detection](#processing-videos-with-object-detection)
 - [5. Formula 1](#5-formula-1) — [Training custom YOLO models](#training-custom-yolo-models-for-f1-racing) · [F1 racetrack segmentation](#f1-racetrack-segmentation) · [Onboard segmentation with Roboflow](#f1-onboard-instance-segmentation-with-roboflow)
 - [Troubleshooting runbooks](docs/troubleshooting/README.md)
 - [INT8 TensorRT engine benchmarks](docs/performance/int8-tensorrt-engines.md)
 - [NVDEC hardware decode notes](docs/performance/nvdec-decode-notes.md)
+- [Cosmos-Reason2-2B + vLLM serving runbook](docs/cosmos-reason2-vllm.md)
 - [AI agent guide](agent/AGENTS.md) — [Setup guide (new Jetson)](agent/SETUP.md) · [Field notes & lessons](agent/FIELD_NOTES.md)
 - [License](#license)
 
@@ -231,6 +232,7 @@ torch/TensorRT stacks at once ≈ swap thrashing and inference latency collapse.
 | Agent ops (cache drop, sysctl) | `alpine:latest` (8 MB) | negligible | ✅ always fine |
 | Roboflow inference server (F1 demo, §5) | `roboflow/roboflow-inference-server-jetson-6.0.0` | 2–4 GB | ⚠️ only for that demo, not with both YOLO servers |
 | LLM / VLM serving (`nano_llm`, ollama + WebUI, §2–3) | `dustynv/nano_llm`, ollama images | 6–8 GB with model loaded | ❌ never — run exclusively |
+| Cosmos-Reason2 vLLM serving (§3) | `ghcr.io/nvidia-ai-iot/vllm:0.14.0-r36.4-tegra-aarch64-cu126-22.04` | 6–8 GB with model loaded | ❌ never — run exclusively ([runbook](docs/cosmos-reason2-vllm.md)) |
 
 Pruned 2026-09-01 (issue #12): the idle Roboflow (16.8 GB) and `nano_llm`
 (30.6 GB) images were removed — re-pull them with the run commands in §5 / §3
@@ -506,7 +508,19 @@ Access at `http://<JETSON_IP>:8080`
 
 ## 3. Vision Language Models (VLMs)
 
-Vision Language Models combine visual understanding with language capabilities, enabling the model to analyze images and answer questions about them.
+Vision Language Models combine visual understanding with language capabilities, enabling the model to analyze images and answer questions about them. This repo has two serving paths — pick by workload:
+
+| | **nano_llm / VILA** | **Cosmos-Reason2-2B + vLLM** |
+|---|---|---|
+| What runs where | Everything on the Jetson | Jetson serves the API; UI + webcam stay on the PC |
+| Camera → output | `/dev/video0` on the Jetson → WebRTC on `:8554` | PC webcam → Live VLM WebUI `:8090` → vLLM `:8010` |
+| API | nano_llm chat / `video_query` | OpenAI-compatible `/v1` on `:8010` |
+| Trained for | General image chat, captioning, visual Q&A | **Physical reasoning**: hazards, collisions, spatial state |
+| Weight | The lighter path (one MLC container) | Heavier (vLLM container + FP8 weights), reason-first answers |
+
+Use **VILA** for interactive "what am I looking at" chat against a Jetson-attached camera. Use **Cosmos-Reason2** when the questions are physical — *is that load stable, will the robot clip the table edge* — or when you want an OpenAI-compatible endpoint other tools can target. Both paths are memory-exclusive on this 8 GB board: one VLM at a time, nothing else heavy alongside.
+
+### nano_llm / VILA: everything on the Jetson
 
 **1. Start the nano_llm container:**
 
@@ -591,11 +605,37 @@ jetson-containers run $(autotag nano_llm) \
   --max-new-tokens 32
 ```
 
-**Storage Requirements:**
+### Cosmos-Reason2-2B with vLLM: physical reasoning, driven from the PC
 
-- nano_llm container: ~8GB
-- VILA 1.5-3B model: ~6GB
-- Obsidian 3B model: ~6GB
+NVIDIA's Cosmos-Reason2-2B (FP8 checkpoint from NGC, not HF) served by vLLM as an OpenAI-compatible endpoint on `:8010`, driven from the PC by [Live VLM WebUI](https://github.com/NVIDIA-AI-IOT/live-vlm-webui) with the PC's webcam. The model is post-trained for physical reasoning — hazards, collisions, spatial state — which VILA is not.
+
+**Topology** (the LAN link is permanent: webcam and UI live on the PC, and every process kept off the Jetson is memory the model gets):
+
+```
+PC webcam → Live VLM WebUI (PC, https://localhost:8090)
+              └→ OpenAI API → Jetson vLLM (http://<jetson-ip>:8010/v1)
+                               └→ /ssd/models FP8 weights (~5 GB)
+```
+
+**Launch** — the full agent-executable deployment (NGC download to `/ssd/models`, pinned vLLM 0.14.0 container, GPU-exclusivity gates, verification, troubleshooting) is the [Cosmos-Reason2 + vLLM runbook](docs/cosmos-reason2-vllm.md). Day-to-day serving is one command once its env file exists:
+
+```bash
+# HOST: jetson
+~/launch_vllm.sh        # exclusivity gate → serve → readiness poll
+```
+
+**Live VLM WebUI tuning on 8 GB** — set these *before* clicking Start (full flow in the runbook §5):
+
+| Setting | Value | Why |
+|---|---|---|
+| Max Tokens | 100–150 | image tokens consume ~500–600 of the 1024-token context window |
+| Frame Interval | 60+ | one request at a time; set it from the runbook's gate-3 latency measurement |
+| Prompts | structured physical-reasoning questions | e.g. "list objects at risk of falling and any collision hazards" — not open-ended captioning |
+
+**Storage Requirements (§3, both paths):**
+
+- VILA path: nano_llm container ~8GB · VILA 1.5-3B model ~6GB · Obsidian 3B model ~6GB
+- Cosmos path: vLLM container image ~8GB · FP8 weights ~5GB — both land on `/ssd` (`/ssd/models` per the storage convention)
 - Recommended: NVMe SSD with 64GB+ free space
 
 ---

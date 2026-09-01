@@ -1,0 +1,29 @@
+# cosmos-env.example — template for ~/.cosmos-env on the Jetson
+#
+# Copy to ~/.cosmos-env (on the Jetson, NOT inside any repo) and fill in real
+# values. Consumed by ~/launch_vllm.sh (docs/cosmos-reason2-vllm.md §4), which
+# reads ~/.cosmos-env by default — point it elsewhere with COSMOS_ENV=/path.
+# The real file is never committed — same pattern as agent/inventory.md.
+# cp agent/cosmos-env.example ~/.cosmos-env
+
+# Model — NGC FP8 checkpoint, downloaded to /ssd per repo storage convention (§2)
+MODEL_PATH="/ssd/models/cosmos-reason2-2b_v1208-fp8-static-kv8"
+
+# Container — pinned tag. 0.16.0-era builds garble Cosmos output (runbook §8);
+# tag names observed 2026-09-01 via the ghcr.io registry API.
+VLLM_TAG="0.14.0-r36.4-tegra-aarch64-cu126-22.04"
+
+# Serve — known-good set on 8 GB Orin (runbook §4).
+# Fallback on first OOM: 768 / 768 / 0.52. NEVER raise VLLM_GPU_MEM_UTIL above 0.60.
+VLLM_PORT="8010"
+VLLM_MAX_MODEL_LEN="1024"
+VLLM_MAX_BATCHED_TOKENS="1024"
+VLLM_GPU_MEM_UTIL="0.55"
+
+# torch.compile cache on the host — first launch compiles kernels (slow), later
+# launches reuse it (runbook §4.2)
+VLLM_CACHE_DIR="$HOME/.cache/vllm"
+
+# Optional overrides (defaults shown)
+#VLLM_CONTAINER="cosmos-vllm"
+#READY_TIMEOUT_SECS="900"

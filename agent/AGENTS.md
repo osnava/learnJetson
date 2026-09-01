@@ -76,6 +76,8 @@ sources → the [runbooks](../docs/troubleshooting/README.md) when something bre
 | `jetson.sh` | find / ssh / status / health / logs / dropcache — the agent's hands |
 | `inventory.md` | real IPs/MACs/UUIDs (**gitignored — never commit**) |
 | `inventory.example.md` | template for the above |
+| `launch_vllm.sh` | Cosmos-Reason2 vLLM launcher — stream to the Jetson, run by path ([runbook](../docs/cosmos-reason2-vllm.md)) |
+| `cosmos-env.example` | template for the Jetson's `~/.cosmos-env` (real file **gitignored**) |
 
 ## Repo hygiene on Windows (line endings + exec bits)
 

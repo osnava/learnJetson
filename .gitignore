@@ -11,6 +11,10 @@
 agent/inventory.sh
 agent/inventory.md
 
+# Cosmos serving env — the real file lives on the Jetson (~/.cosmos-env), never in the repo
+agent/cosmos-env
+.cosmos-env
+
 # Local handoff docs — environment details never go in a public repo
 JETSON_DEV_HANDOFF.md
 JETSON_RECOVERY_HANDOFF.md
