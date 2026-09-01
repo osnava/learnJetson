@@ -4,6 +4,12 @@ This file is the **rulebook for any AI agent** (Claude Code, ZCode, Cursor, etc.
 the Jetson Orin Nano described by this repository. It exists so "use an AI agent on my Jetson"
 is a safe, repeatable statement — for the owner and for anyone adopting this repo.
 
+**The kit, in reading order for a fresh session:** this rulebook →
+[`inventory.md`](inventory.md) (machine facts, gitignored) →
+[SETUP.md](SETUP.md) if you're bringing up a **new** Jetson with this kit →
+[FIELD_NOTES.md](FIELD_NOTES.md) for the *why* behind these rules, with
+sources → the [runbooks](../docs/troubleshooting/README.md) when something breaks.
+
 ## The machine (see `inventory.md` — gitignored — for real values)
 
 - Jetson Orin Nano Developer Kit, JetPack 6.2.2 (L4T R36.5.2), kernel `5.15.199-tegra`.

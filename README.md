@@ -46,7 +46,7 @@ This repository supports multiple AI/ML workloads. Choose the setup that matches
 - [Troubleshooting runbooks](docs/troubleshooting/README.md)
 - [INT8 TensorRT engine benchmarks](docs/performance/int8-tensorrt-engines.md)
 - [NVDEC hardware decode notes](docs/performance/nvdec-decode-notes.md)
-- [AI agent guide](agent/AGENTS.md)
+- [AI agent guide](agent/AGENTS.md) — [Setup guide (new Jetson)](agent/SETUP.md) · [Field notes & lessons](agent/FIELD_NOTES.md)
 - [License](#license)
 
 ---
