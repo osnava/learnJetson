@@ -151,11 +151,11 @@ sudo reboot
 
 ### Performance optimization
 
-Best practices for maximizing performance on the Jetson Orin Nano:
+Best practices for maximizing performance on the Jetson Orin Nano.
 
 #### Install Jetson Stats application
 
-Monitor system temperatures, CPU/GPU/RAM utilization, and manage performance settings:
+Monitor system temperatures, CPU/GPU/RAM utilization:
 
 ```bash
 sudo apt update
@@ -169,57 +169,68 @@ Run the monitoring tool:
 jtop
 ```
 
-#### Configure performance settings in jtop
+#### Clocks and fan — locked at boot, leave jtop's fan controls alone
 
-**IMPORTANT:** Follow these steps in order BEFORE loading models or running inference scripts:
+Max performance (CPU 1.7 GHz ×6, GPU 1.02 GHz, fan at full PWM, MAXN_SUPER)
+is applied at every boot by the custom `jetson_clocks.service` oneshot — see
+the [clocks/fan runbook](docs/troubleshooting/lock-clocks-fan-maxn-super.md)
+for the full design and verification steps.
 
-**1. Set Fan Profile to Cool Mode**
+⚠️ **Do not set a fan profile from jtop** (CTRL → cool/other profiles): jtop's
+saved profiles re-enable `nvfancontrol`, which fights the boot-time lock and
+steals the fan back. Fan management in jtop is deliberately disarmed on this
+machine (the `fan` section is removed from `/usr/local/jtop/config.json`) —
+if you ever re-add it, stop jtop first, edit the config, and expect the lock
+to lose. Use jtop pages 1–4 as a *monitor* only.
 
-Press **`5`** to go to the CTRL section, then navigate to Profiles and select **[cool]**:
+Verify the lock is active after boot: `sudo jetson_clocks --show` should list
+max clocks and fan PWM 255; sustained loads (e.g. a 10-minute `trtexec` run)
+should show zero clock dips and GPU ≤ ~60 °C.
 
-![CTRL Section - Fan and Power Settings](resources/CTRL_section.png)
+#### Memory cache: clear it for builds and big loads — not for every run
 
-- **Fan Profile:** Set to **[cool]** (keeps temperature low under heavy load)
-- **Jetson Clocks:** Press **`s`** to start (shows **[s] running**)
-- **NVP Power Mode:** Select **MAXN SUPER** or **25W** mode
+On Jetson's unified memory, the kernel reclaims file cache automatically
+whenever a normal allocation needs it — so clearing cache before ordinary
+inference buys nothing and just forces cold re-reads of the files your server
+is about to load. The real consumer of this trick is **TensorRT tactic
+autotuning**: it never allocates, it *checks free memory per tactic and skips
+tactics that don't fit* (`Tactic Device request: XM Available: 0MB`), so a
+multi-GB page cache (e.g. after dataset downloads) can fail an engine build
+with no actual OOM.
 
-**2. Clear Memory Cache**
-
-Press **`4`** to go to the MEM section, then press **`c`** to clear cache:
-
-![MEM Section - Before Clearing Cache](resources/MEM_section.png)
-
-*Before: Cache uses ~1.6G of memory*
-
-![MEM Section - After Clearing Cache](resources/MEM_section_clear_cache.png)
-
-*After: Cache reduced to ~421M, freeing up memory for models*
-
-**IMPORTANT:** Clear the cache **every time** before loading a model or running an inference script. This ensures maximum GPU memory is available for your models, preventing out-of-memory errors and improving performance.
-
-**3. Verify Settings**
-
-Ensure the following are active:
-
-- ✅ Fan profile: **cool**
-- ✅ Jetson Clocks: **running**
-- ✅ Power Mode: **MAXN SUPER** or **25W**
-- ✅ Cache: **cleared**
-
-**Command Line Alternatives:**
+Clear it event-time, right before the operations that gate on free memory:
 
 ```bash
-# Enable MAX Power Mode
-sudo nvpmodel -m 2
-
-# Enable Jetson Clocks
-sudo jetson_clocks
-
-# Clear memory cache (run before loading models)
-sudo sysctl vm.drop_caches=3
+sync && sudo sysctl vm.drop_caches=3
 ```
 
-**Note:** These optimizations are **critical** when running compute-intensive workloads like YOLO object detection or LLM inference. Always clear cache before loading new models to maximize available memory.
+- Before **TensorRT engine builds / engine deserialization** (and after big
+  file churn that immediately precedes one).
+- Before **multi-GB model loads** (LLM containers: nano_llm, ollama).
+
+Do **not** bother before loading the YOLO engines (5–9 MB) or restarting the
+inference servers — the 5–9 MB engines don't need it, and the dropped cache
+is exactly the data they'd reuse. Never run it as a daemonized cleaner; that
+trades real file performance for a number in `free`.
+
+The structural fix (better than the ritual) is a persistent free-memory floor,
+which makes TensorRT's headroom checks pass at all times without dropping
+anything:
+
+```bash
+echo vm.min_free_kbytes = 131072 | sudo tee /etc/sysctl.d/99-jetson-free-floor.conf
+sudo sysctl -w vm.min_free_kbytes=131072
+```
+
+Keep it at 128–256 MB on this 8 GB board — a floor that is too high reserves
+memory nothing can use and can itself cause OOM kills.
+
+Already in place on this machine (see the
+[RAM optimization guide](https://www.jetson-ai-lab.com/tips_ram-optimization.html)):
+headless multi-user target, 16 GB swapfile on `/ssd` plus zram. The remaining
+hygiene rule: stop heavyweight containers you don't need before building
+engines — each `ultralytics` container holds ~2–3 GB of Python/torch resident
+against the same 8 GB everything else shares.
 
 ---
 
