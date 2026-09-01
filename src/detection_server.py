@@ -4,7 +4,7 @@ from ultralytics import YOLO
 
 app = Flask(__name__)
 
-model = YOLO('/ssd/yolo11n.engine')
+model = YOLO('/ssd/yolo11n-int8.engine')  # INT8 (issue #7): +28% throughput, -1.5pt mAP50-95 vs FP16; FP16 fallback: /ssd/yolo11n.engine
 
 def generate_frames():
     camera = cv2.VideoCapture(0)

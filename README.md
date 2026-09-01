@@ -36,6 +36,7 @@ This repository supports multiple AI/ML workloads. Choose the setup that matches
 - [4. Self-driving applications](#4-self-driving-applications)
 - [5. Formula 1](#5-formula-1) — [Training custom YOLO models](#training-custom-yolo-models-for-f1-racing) · [F1 racetrack segmentation](#f1-racetrack-segmentation) · [Onboard segmentation with Roboflow](#f1-onboard-instance-segmentation-with-roboflow)
 - [Troubleshooting runbooks](docs/troubleshooting/README.md)
+- [INT8 TensorRT engine benchmarks](docs/performance/int8-tensorrt-engines.md)
 - [AI agent guide](agent/AGENTS.md)
 - [License](#license)
 
