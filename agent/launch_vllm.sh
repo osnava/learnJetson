@@ -59,7 +59,7 @@ preflight() {
   [ "$avail_mb" -ge 6500 ] || fail_gate "only ${avail_mb} MB memory available (want ~7 GB) — stop heavyweight services, then retry"
   [ -d "$MODEL_PATH" ] || fail_gate "MODEL_PATH '$MODEL_PATH' does not exist — run the NGC download first (runbook §2)"
   if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
-    echo "image $IMAGE not local — pulling (~8 GB; runbook §3 has the nohup pattern)..."
+    echo "image $IMAGE not local — pulling (~22 GB; runbook §3 has the nohup pattern)..."
     docker pull "$IMAGE"
   fi
 }

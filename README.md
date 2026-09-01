@@ -609,12 +609,18 @@ jetson-containers run $(autotag nano_llm) \
 
 NVIDIA's Cosmos-Reason2-2B (FP8 checkpoint from NGC, not HF) served by vLLM as an OpenAI-compatible endpoint on `:8010`, driven from the PC by [Live VLM WebUI](https://github.com/NVIDIA-AI-IOT/live-vlm-webui) with the PC's webcam. The model is post-trained for physical reasoning — hazards, collisions, spatial state — which VILA is not.
 
+**Demo:**
+
+![Cosmos Reason2 Live Demo](resources/cosmos_reason2_webui.gif)
+
+*Cosmos-Reason2-2B analyzing a live webcam feed — Live VLM WebUI on the PC, all inference on the Jetson (~13.8 s per frame at 150 tokens)*
+
 **Topology** (the LAN link is permanent: webcam and UI live on the PC, and every process kept off the Jetson is memory the model gets):
 
 ```
 PC webcam → Live VLM WebUI (PC, https://localhost:8090)
               └→ OpenAI API → Jetson vLLM (http://<jetson-ip>:8010/v1)
-                               └→ /ssd/models FP8 weights (~5 GB)
+                               └→ /ssd/models FP8 weights (3.3 GB)
 ```
 
 **Launch** — the full agent-executable deployment (NGC download to `/ssd/models`, pinned vLLM 0.14.0 container, GPU-exclusivity gates, verification, troubleshooting) is the [Cosmos-Reason2 + vLLM runbook](docs/cosmos-reason2-vllm.md). Day-to-day serving is one command once its env file exists:
@@ -635,7 +641,7 @@ PC webcam → Live VLM WebUI (PC, https://localhost:8090)
 **Storage Requirements (§3, both paths):**
 
 - VILA path: nano_llm container ~8GB · VILA 1.5-3B model ~6GB · Obsidian 3B model ~6GB
-- Cosmos path: vLLM container image ~8GB · FP8 weights ~5GB — both land on `/ssd` (`/ssd/models` per the storage convention)
+- Cosmos path: vLLM container image ~22GB · FP8 weights ~3.3GB (measured on this box) — both land on `/ssd` (`/ssd/models` per the storage convention)
 - Recommended: NVMe SSD with 64GB+ free space
 
 ---

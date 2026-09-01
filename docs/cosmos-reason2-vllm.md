@@ -1,10 +1,9 @@
 # Runbook: Cosmos-Reason2-2B with vLLM (physical-reasoning VLM, driven from the PC)
 
-> **Status:** machine fit verified over SSH on this board 2026-09-01 (§0). **Not yet executed
-> end-to-end here** — the serve flags below are the known-good set for 8 GB Orin from field
-> reports on identical hardware (see [Sources](#sources)); the first full run must fill the
-> [completion report](#9-agent-completion-report). One irreducible human step gates the flow:
-> the NGC account + API key (§2).
+> **Verified end-to-end on this board:** 2026-09-01 — all three §4 gates passed (image gate
+> **13.8 s** at 150 tokens); serving at 1024/0.55 after the §2.4 preprocessor patch; full
+> results in the [completion report](#9-agent-completion-report). The one human gate in the
+> flow is the NGC account + API key (§2).
 >
 > A *deployment* runbook (agent-protocol steps to reach a running stack), not a symptom
 > runbook — recovery guides follow the
@@ -29,7 +28,7 @@ PC webcam ──► Live VLM WebUI on the PC (https://localhost:8090)
                     ▼
           Jetson: vLLM container (http://<jetson-ip>:8010/v1)
                     │  volume mounts, read-only
-                    ├── /ssd/models/cosmos-reason2-2b_v1208-fp8-static-kv8  (FP8 weights, ~5 GB)
+                    ├── /ssd/models/cosmos-reason2-2b_v1208-fp8-static-kv8  (FP8 weights, 3.3 GB)
                     └── ~/.cache/vllm  (torch.compile cache — first run builds, later runs reuse)
 ```
 
@@ -87,9 +86,10 @@ box; `sudo jetson_clocks --show` needs the owner's sudo (scoped sudoers, issue #
 
 ## 1. Storage prep — weights and image on NVMe `[AUTO]`
 
-`[GATE]` ~13 GB needed on `/ssd` (weights ~5 GB + vLLM image ~8 GB). Verified free 2026-09-01:
-**602 GB**. Ties into the #12 prune policy — images on disk cost nothing at runtime, running
-ones do.
+`[GATE]` ~26 GB needed on `/ssd` (weights ~3.3 GB + vLLM image ~22.3 GB — both measured on
+this box 2026-09-01; upstream's ~5 GB / ~8 GB figures understate the unpacked image).
+Verified free 2026-09-01: **602 GB**. Ties into the #12 prune policy — images on disk cost
+nothing at runtime, running ones do.
 
 ```bash
 # HOST: jetson  [AUTO]
@@ -135,6 +135,32 @@ tail -n 5 ~/logs/ngc-cosmos.log
 ls /ssd/models/cosmos-reason2-2b_v1208-fp8-static-kv8   # [GATE] config.json + safetensors present
 ```
 
+Measured 2026-09-01: **3.3 GB**, 11 files.
+
+**2.4 Shrink the checkpoint's image resolution — REQUIRED on 8 GB** `[AUTO]` — field result
+2026-09-01: without this patch vLLM's memory-profiling pass dies at *any* serve config (the
+§8 NVML assert); with it, the known-good config serves (§4.2):
+
+```bash
+# HOST: jetson  [AUTO]
+cd /ssd/models/cosmos-reason2-2b_v1208-fp8-static-kv8
+cp preprocessor_config.json preprocessor_config.json.bak
+python3 -c "
+import json
+p = 'preprocessor_config.json'
+c = json.load(open(p))
+c['size']['longest_edge'] = 50176
+c['size']['shortest_edge'] = 3136
+json.dump(c, open(p, 'w'), indent=2)
+print('patched:', json.load(open(p))['size'])
+"
+```
+
+Why: the stock config allows 16.7M-pixel images (`longest_edge: 16777216`), and vLLM sizes
+its profiling worst case from that — the activation spike kills the engine *regardless of*
+`--max-model-len` / `--gpu-memory-utilization`. 50176/3136 is the tutorial's setting for
+this board class; the `.bak` restores stock behavior.
+
 ## 3. vLLM container — pinned, not floating `[AUTO]`
 
 **Use the exact tag `0.14.0-r36.4-tegra-aarch64-cu126-22.04`.** Reason: newer vLLM builds in
@@ -144,7 +170,7 @@ independent field reports (see [Sources](#sources)); 0.14.0 is the known-good pi
 `latest-jetson-orin` alias currently resolves to a 0.19.0-era build — untested here; don't.
 
 ```bash
-# HOST: jetson  [AUTO] — ~8 GB pull, nohup pattern
+# HOST: jetson  [AUTO] — ~22 GB pull (unpacked, measured 2026-09-01), nohup pattern
 VLLM_TAG=0.14.0-r36.4-tegra-aarch64-cu126-22.04
 setsid nohup docker pull ghcr.io/nvidia-ai-iot/vllm:${VLLM_TAG} > ~/logs/vllm-pull.log 2>&1 &
 tail -n 5 ~/logs/vllm-pull.log
@@ -198,9 +224,11 @@ vllm serve /models/cosmos-reason2-2b --served-model-name cosmos-reason2-2b \
   `--gpu-memory-utilization 0.52`.
 - **Never go above 0.60** on this board. Headless freed ~0.8–1 GB — if you raise anything,
   raise **one flag at a time** and re-run the §4 image gate each time.
-- If image requests still overflow the context at 768 (image tokens alone eat ~500–600), the
-  tutorial's further lever is shrinking `preprocessor_config.json` (`longest_edge` 50176 /
-  `shortest_edge` 3136) — do this only after the fallback config, and record it as a deviation.
+- **Field-verified ladder (2026-09-01):** without the §2.4 preprocessor patch, *both*
+  1024/0.55 and 768/0.52 died in vLLM's profiling pass (the §8 NVML assert). With the patch,
+  768/0.52 produced a clean `0.08 GiB KV cache needed > 0.0 GiB available` error, and
+  **1024/0.55 serves**: weights 2.91 GiB, KV cache 0.2 GiB (1,872 tokens). The preprocessor
+  patch is the prerequisite, not a last resort.
 
 **4.3 Launch + gates** `[AUTO]` — `./launch_vllm.sh` does preflight → serve → readiness poll,
 then run the three gates by hand:
@@ -271,7 +299,9 @@ case on this box, whose LAN services (5000/8080/9001) have never needed port wor
 failure is elsewhere: re-check the URL uses the Jetson's *current* DHCP IP (`agent/jetson.sh
 find` / `agent/inventory.md`) and plain `http://`.
 
-**5.1 Install** `[AUTO]` on the PC (any user account with Python 3.10+):
+**5.1 Install** `[AUTO]` on the PC (any user account with Python 3.10+; on Windows use WSL2 —
+the project's supported path, and the browser-side webcam is unaffected since the *browser*
+captures the frames — field setup 2026-09-01: WSL Ubuntu-22.04 + uv):
 
 ```bash
 # HOST: pc  [AUTO]
@@ -299,7 +329,7 @@ live-vlm-webui && ./scripts/start_container.sh` — same port.)
 | Setting | Value | Why |
 |---|---|---|
 | Max Tokens | **100–150** | image tokens consume ~500–600 of the 1024 window; defaults (512) 400-error |
-| Frame Interval | **60+, set by gate-3 latency** | at 30 fps, interval ≥ 30 × measured seconds (e.g. 4 s → 120); never below 60 |
+| Frame Interval | **450+ (measured 2026-09-01)** | at 30 fps, interval ≥ 30 × gate-3 seconds: 13.8 s × 30 ≈ 415, rounded up so requests never queue |
 | Prompt shape | structured physical-reasoning prompts | see below |
 
 **Prompt shape:** Cosmos-Reason2 was post-trained for physical reasoning — ask physics-of-the-
@@ -327,7 +357,7 @@ launch-time-only step (see §7) — otherwise leave swap alone.
 
 | Decision | Choice | Reason |
 |---|---|---|
-| **Swap policy** | First serve attempt with swap **untouched** (16 GB `/ssd` swapfile + zram stay on) | The memory floor (#17) + headless already give headroom; swap is the safety net, not extra speed. If gate-3 latency is erratic (swap-in visible in `free -m`), make `sudo swapoff -a` a launch-time-only `[CONFIRM]` cheat-sheet step (needs the owner's sudo). **Never disable zram permanently.** Outcome to record in §9 on first run. |
+| **Swap policy** | First serve attempt with swap **untouched** (16 GB `/ssd` swapfile + zram stay on) | The memory floor (#17) + headless already give headroom; swap is the safety net, not extra speed. If gate-3 latency is erratic (swap-in visible in `free -m`), make `sudo swapoff -a` a launch-time-only `[CONFIRM]` cheat-sheet step (needs the owner's sudo). **Never disable zram permanently.** Outcome (2026-09-01): swap untouched, latency steady — no swapoff step warranted. |
 | **Port 8010** | Serve on 8010 | Free on this box (verified 2026-09-01). The draft's llama.cpp fallback port 8080 collides with open-webui — moot because open-webui must be stopped anyway for exclusivity, but 8010 avoids the question entirely. |
 | **Firewall** | Check `sudo ufw status` at deploy time; open 8010/tcp **only if active** | Could not be verified non-interactively (`ufw status` needs the owner's sudo). LAN services (5000/8080/9001) have always been reachable without port work here, suggesting ufw is inactive. Opening ports is ask-human-first per [`agent/AGENTS.md`](../agent/AGENTS.md). |
 | **GPU exclusivity as a gate** | Hard `[GATE]` inside `launch_vllm.sh`: no other containers + ~7 GB available | 8 GB unified heap; ultralytics ~2–3 GB resident each, ollama similar. Nothing else fits alongside — no ROS 2 / second stack on this board while serving. |
@@ -336,6 +366,7 @@ launch-time-only step (see §7) — otherwise leave swap alone.
 
 | Symptom | Fix | Not this |
 |---|---|---|
+| **Engine dies at startup: `NVML_SUCCESS == r INTERNAL ASSERT FAILED` (CUDACachingAllocator) during init** | Apply the §2.4 preprocessor patch — the 16.7M-pixel default makes vLLM's profiling pass OOM; the assert is Jetson's `NvMapMemAlloc` ENOMEM surfacing through PyTorch. Field-verified 2026-09-01: both primary and fallback configs died identically without it; 1024/0.55 serves with it. | Not memory-flag tuning — the profiling workload is driven by image resolution, not `--max-model-len` |
 | **Gibberish output** (repeated tokens, mixed scripts) | Pin the container to vLLM **0.14.0** (`0.14.0-r36.4-tegra-aarch64-cu126-22.04`) before touching anything else. 0.16.0-era builds show this on Cosmos-Reason2; it mimics a tokenizer bug. | Do **not** tune memory flags in response — it's a container-version bug. |
 | **Text passes, images OOM / context overflow** | Raise `--max-model-len` (768 → 1024) | Not `--gpu-memory-utilization` — image tokens need context space, not KV pool fraction; and never above 0.60 on this board. |
 | **`400 max_tokens is too large` from WebUI** | WebUI Max Tokens down to 100–150 (image tokens eat ~500–600 of the window) | — |
@@ -346,17 +377,17 @@ launch-time-only step (see §7) — otherwise leave swap alone.
 
 ## 9. Agent completion report
 
-Fill on first successful end-to-end run (this is the issue #18 acceptance record):
+Fill on first successful end-to-end run (this is the issue #18 acceptance record). Filled 2026-09-01:
 
-- [ ] JetPack / L4T version serving ran on: ________
-- [ ] Container tag used + pinned?: ________
-- [ ] Gate 1 `/v1/models` result: ________
-- [ ] Gate 2 text output coherent?: ________
-- [ ] Gate 3 image description correct? + wall-clock latency: ________ s
-- [ ] WebUI Frame Interval set from that latency: ________
-- [ ] Final `--max-model-len` / `--gpu-memory-utilization`: ________
-- [ ] Swap decision outcome (untouched / launch-time swapoff): ________
-- [ ] Deviations from this runbook: ________
+- [x] JetPack / L4T version serving ran on: **JetPack 6.2.2 / L4T R36.5.2**
+- [x] Container tag used + pinned?: **`0.14.0-r36.4-tegra-aarch64-cu126-22.04` — pinned**
+- [x] Gate 1 `/v1/models` result: **lists `cosmos-reason2-2b`, `max_model_len: 1024`**
+- [x] Gate 2 text output coherent?: **yes — coherent prose, none of the 0.16.0-style gibberish**
+- [x] Gate 3 image description correct? + wall-clock latency: **yes (bus scene, six people, positions/proximity correct) — 13.8 s**
+- [x] WebUI Frame Interval set from that latency: **450+ (30 fps × 13.8 s ≈ 415)**
+- [x] Final `--max-model-len` / `--gpu-memory-utilization`: **1024 / 0.55** — weights 2.91 GiB, KV cache 0.2 GiB (1,872 tokens)
+- [x] Swap decision outcome: **untouched** — 16 GB `/ssd` swapfile + zram stayed on, latency steady
+- [x] Deviations: **§2.4 preprocessor patch is required, not optional; brief fallback detour (768/0.52) taken while diagnosing; measured sizes differ from upstream (weights 3.3 GB vs ~5 GB, image 22.3 GB vs ~8 GB)**
 
 ## Sources
 
