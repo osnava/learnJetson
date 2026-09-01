@@ -64,6 +64,6 @@ is a safe, repeatable statement — for the owner and for anyone adopting this r
 
 | File | Purpose |
 |---|---|
-| `jetson.sh` | find / ssh / status / health / logs — the agent's hands |
+| `jetson.sh` | find / ssh / status / health / logs / dropcache — the agent's hands |
 | `inventory.md` | real IPs/MACs/UUIDs (**gitignored — never commit**) |
 | `inventory.example.md` | template for the above |

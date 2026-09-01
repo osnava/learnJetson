@@ -8,6 +8,7 @@
 #   ./jetson.sh status <ip>          full health panel (rootfs, mounts, swap, docker, units)
 #   ./jetson.sh health <ip>          silent check; exit 0 = healthy (for agents/CI)
 #   ./jetson.sh logs <ip> [unit]     tail journal (default: -b boot log)
+#   ./jetson.sh dropcache <ip>       sync + drop page cache (privileged container; before TRT builds / multi-GB loads only)
 #
 # Tunables via environment or agent/inventory.sh (gitignored):
 #   JETSON_USER      SSH user            (default: from inventory or $USER)
@@ -62,6 +63,7 @@ remote_panel() {
     echo "uptime    : $(uptime -p | cut -d" " -f2-)"
     echo "/ssd      : $(findmnt -n -o SOURCE,SIZE,USED /ssd 2>/dev/null || echo "not mounted")"
     echo "swap      : $(swapon --show --noheadings 2>/dev/null | awk "{print \$1\" (\"\$3\")\"}" | tr "\n" " ")"
+    echo "mem       : $(free -m | awk "NR==2{print \$4\"M free / \"\$7\"M avail\"}") / min_free_kbytes $(cat /proc/sys/vm/min_free_kbytes)kB"
     echo "docker    : $(systemctl is-active docker) / failed units: $(systemctl --failed --no-legend | wc -l)"
     echo "boot order: $(efibootmgr 2>/dev/null | grep BootOrder || echo n/a)"
   '
@@ -88,11 +90,19 @@ cmd_logs() {
   fi
 }
 
+cmd_dropcache() {
+  local ip="$1"
+  echo "Dropping page cache on ${ip} (sync + drop_caches=3 via privileged container)..."
+  cmd_ssh "$ip" "docker run --rm --privileged alpine:latest sh -c 'sync && echo 3 > /proc/sys/vm/drop_caches'"
+  echo "done — per policy: before TRT builds / multi-GB loads only, never daemonized (README §Performance)"
+}
+
 case "${1:-help}" in
   find)   shift; cmd_find "$@" ;;
   ssh)    shift; cmd_ssh "$@" ;;
   status) shift; cmd_status "$@" ;;
   health) shift; cmd_health "$@" ;;
   logs)   shift; cmd_logs "$@" ;;
-  *) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//' ;;
+  dropcache) shift; cmd_dropcache "$@" ;;
+  *) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//' ;;
 esac

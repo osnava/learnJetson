@@ -227,7 +227,10 @@ memory nothing can use and can itself cause OOM kills.
 
 Already in place on this machine (see the
 [RAM optimization guide](https://www.jetson-ai-lab.com/tips_ram-optimization.html)):
-headless multi-user target, 16 GB swapfile on `/ssd` plus zram. The remaining
+headless multi-user target, 16 GB swapfile on `/ssd` plus zram, and the
+free-memory floor applied at `/etc/sysctl.d/99-jetson-free-floor.conf`
+(128 MB, 2026-09-01 — verified to hold under 4 GB of allocation pressure).
+The remaining
 hygiene rule: stop heavyweight containers you don't need before building
 engines — each `ultralytics` container holds ~2–3 GB of Python/torch resident
 against the same 8 GB everything else shares.
