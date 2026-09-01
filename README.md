@@ -1,28 +1,45 @@
+<div align="center">
+
 # Jetson Orin Nano AI Development
 
 This repository contains AI/ML development projects and deployment configurations for the NVIDIA Jetson Orin Nano, including vision processing, LLM inference, self-driving applications, and Formula 1 computer vision.
 
----
+<p>
+  <a href="#prerequisites"><img src="https://img.shields.io/badge/Prerequisites-hardware-76B900?style=for-the-badge&logo=nvidia&logoColor=white" alt="Prerequisites" /></a>
+  <a href="#jetson-configuration"><img src="https://img.shields.io/badge/Configuration-jetson%20setup-E95420?style=for-the-badge&logo=linux&logoColor=white" alt="Jetson configuration" /></a>
+  <a href="#1-vision-processing-object-detection"><img src="https://img.shields.io/badge/Vision-object%20detection-F97316?style=for-the-badge&logo=opencv&logoColor=white" alt="Vision processing" /></a>
+  <a href="#2-llm-inference-local-language-models"><img src="https://img.shields.io/badge/LLM-ollama-8B5CF6?style=for-the-badge&logo=ollama&logoColor=white" alt="LLM inference" /></a>
+  <a href="#3-vision-language-models-vlms"><img src="https://img.shields.io/badge/VLM-VILA%201.5-FFD21E?style=for-the-badge&logo=huggingface" alt="Vision-language models" /></a>
+  <a href="#4-self-driving-applications"><img src="https://img.shields.io/badge/Self--driving-YOLO11n-F59E0B?style=for-the-badge" alt="Self-driving" /></a>
+  <a href="#5-formula-1"><img src="https://img.shields.io/badge/Formula%201-racetrack%20segmentation-E10600?style=for-the-badge&logo=f1&logoColor=white" alt="Formula 1" /></a>
+  <a href="docs/troubleshooting/README.md"><img src="https://img.shields.io/badge/Troubleshooting-runbooks-DC2626?style=for-the-badge" alt="Troubleshooting" /></a>
+  <a href="agent/AGENTS.md"><img src="https://img.shields.io/badge/AI%20agent-AGENTS.md-191919?style=for-the-badge" alt="AI agent guide" /></a>
+</p>
 
-<div align="center">
+<img src="resources/jetson_hw_setup.gif" alt="Jetson Orin Nano hardware setup" width="820" />
 
-[![Prerequisites](https://img.shields.io/badge/Prerequisites-blue?style=for-the-badge)](#prerequisites)
-[![Configuration](https://img.shields.io/badge/Configuration-green?style=for-the-badge)](#jetson-configuration)
-[![Vision](https://img.shields.io/badge/Vision_Processing-orange?style=for-the-badge)](#1-vision-processing-object-detection)
-[![LLM](https://img.shields.io/badge/LLM_Inference-purple?style=for-the-badge)](#2-llm-inference-local-language-models)
-[![VLM](https://img.shields.io/badge/Vision_Language-red?style=for-the-badge)](#3-vision-language-models-vlms)
-[![Self-Driving](https://img.shields.io/badge/Self--Driving-yellow?style=for-the-badge)](#4-self-driving-applications)
-[![Formula1](https://img.shields.io/badge/Formula_1-crimson?style=for-the-badge)](#5-formula-1)
-[![Troubleshooting](https://img.shields.io/badge/Troubleshooting-red?style=for-the-badge)](docs/troubleshooting/README.md)
-[![AI Agent](https://img.shields.io/badge/AI_Agent-black?style=for-the-badge)](agent/AGENTS.md)
+<sub>NVIDIA Jetson Orin Nano 8GB Developer Kit with NVMe SSD and cooling setup</sub>
 
 </div>
 
 ---
 
-![Jetson Orin Nano Hardware Setup](resources/jetson_hw_setup.gif)
+## Contents
 
-*NVIDIA Jetson Orin Nano 8GB Developer Kit with NVMe SSD and cooling setup*
+This repository supports multiple AI/ML workloads. Choose the setup that matches your use case:
+
+- [Prerequisites](#prerequisites)
+- [Jetson configuration](#jetson-configuration) — [Connecting to the Jetson](#connecting-to-jetson) · [Headless mode](#disable-gui-to-free-gpu-memory) · [Performance optimization](#performance-optimization)
+- [1. Vision processing (object detection)](#1-vision-processing-object-detection) — [Instance segmentation](#instance-segmentation)
+- [2. LLM inference (local language models)](#2-llm-inference-local-language-models) — [Open WebUI](#optional-open-webui-chat-interface)
+- [3. Vision Language Models (VLMs)](#3-vision-language-models-vlms)
+- [4. Self-driving applications](#4-self-driving-applications)
+- [5. Formula 1](#5-formula-1) — [Training custom YOLO models](#training-custom-yolo-models-for-f1-racing) · [F1 racetrack segmentation](#f1-racetrack-segmentation) · [Onboard segmentation with Roboflow](#f1-onboard-instance-segmentation-with-roboflow)
+- [Troubleshooting runbooks](docs/troubleshooting/README.md)
+- [AI agent guide](agent/AGENTS.md)
+- [License](#license)
+
+---
 
 ## Prerequisites
 
@@ -47,7 +64,9 @@ source ~/.bashrc
 
 This allows you to run `jetson-containers` from any directory.
 
-## Jetson Configuration
+---
+
+## Jetson configuration
 
 ### Connecting to Jetson
 
@@ -105,7 +124,7 @@ ssh jetson@192.168.1.100
 - More efficient for development workflows
 - Run multiple SSH sessions simultaneously
 
-### Disable GUI to Free GPU Memory
+### Disable GUI to free GPU memory
 
 For maximum GPU performance, disable the graphical interface and work in SSH-only mode (headless operation - see SSH connection instructions above):
 
@@ -121,11 +140,11 @@ sudo systemctl set-default graphical.target
 sudo reboot
 ```
 
-### Performance Optimization
+### Performance optimization
 
 Best practices for maximizing performance on the Jetson Orin Nano:
 
-#### Install Jetson Stats Application
+#### Install Jetson Stats application
 
 Monitor system temperatures, CPU/GPU/RAM utilization, and manage performance settings:
 
@@ -141,7 +160,7 @@ Run the monitoring tool:
 jtop
 ```
 
-#### Configure Performance Settings in jtop
+#### Configure performance settings in jtop
 
 **IMPORTANT:** Follow these steps in order BEFORE loading models or running inference scripts:
 
@@ -193,11 +212,9 @@ sudo sysctl vm.drop_caches=3
 
 **Note:** These optimizations are **critical** when running compute-intensive workloads like YOLO object detection or LLM inference. Always clear cache before loading new models to maximize available memory.
 
-## Setup
+---
 
-This repository supports multiple AI/ML workloads. Choose the setup that matches your use case:
-
-### 1. Vision Processing (Object Detection)
+## 1. Vision processing (object detection)
 
 Uses the Ultralytics container for YOLO-based object detection and vision tasks.
 
@@ -255,7 +272,7 @@ Replace `<JETSON_IP>` with your Jetson's IP address (e.g., `http://192.168.1.100
 - `src/segmentation_server.py` - Instance segmentation with web interface (Flask, port 5001)
 - `src/video_detector.py` - Video file processing (command-line only)
 
-#### Instance Segmentation
+### Instance segmentation
 
 For pixel-level object segmentation, use the YOLO11n segmentation model:
 
@@ -310,7 +327,9 @@ http://<JETSON_IP>:5001
 
 The segmentation model provides pixel-perfect masks for detected objects, useful for more precise scene understanding compared to bounding boxes alone.
 
-### 2. LLM Inference (Local Language Models)
+---
+
+## 2. LLM inference (local language models)
 
 Run large language models locally on the Jetson Orin Nano using Ollama.
 
@@ -387,7 +406,7 @@ curl http://localhost:11434/api/generate -d '{
 }'
 ```
 
-#### Optional: Open WebUI (Chat Interface)
+### Optional: Open WebUI (chat interface)
 
 Provides a ChatGPT-like interface for Ollama:
 
@@ -408,7 +427,9 @@ Access at `http://<JETSON_IP>:8080`
 - Model sizes: 2GB-8GB per model
 - Recommended: NVMe SSD with 64GB+ free space
 
-### 3. Vision Language Models (VLMs)
+---
+
+## 3. Vision Language Models (VLMs)
 
 Vision Language Models combine visual understanding with language capabilities, enabling the model to analyze images and answer questions about them.
 
@@ -510,7 +531,9 @@ jetson-containers run $(autotag nano_llm) \
 - Obsidian 3B model: ~6GB
 - Recommended: NVMe SSD with 64GB+ free space
 
-### 4. Self-Driving Applications
+---
+
+## 4. Self-driving applications
 
 Development environment for autonomous vehicle algorithms using the vision processing stack.
 
@@ -520,7 +543,7 @@ Development environment for autonomous vehicle algorithms using the vision proce
 
 *YOLO11n detecting vehicles, pedestrians, traffic lights, and stop signs on street footage*
 
-#### Model Setup and Optimization
+### Model setup and optimization
 
 This project uses YOLO11n optimized for the Jetson Orin Nano's GPU through TensorRT quantization:
 
@@ -551,7 +574,7 @@ The TensorRT engine (`yolo11n.engine`) provides significant performance improvem
 - `models/yolo11n.onnx` - ONNX intermediate format (10.7 MB)
 - `models/yolo11n.engine` - TensorRT optimized for Jetson (12.5 MB)
 
-#### Processing Videos with Object Detection
+### Processing videos with object detection
 
 Use `video_detector.py` to process video files with self-driving relevant object detection:
 
@@ -571,11 +594,13 @@ python src/video_detector.py street_footage.mp4 detected_street.mp4
 
 The detector filters YOLO's 80 classes to focus only on objects relevant for self-driving scenarios.
 
-### 5. Formula 1
+---
+
+## 5. Formula 1
 
 Computer vision applications for Formula 1 racing, including track segmentation, barrier detection, and onboard footage analysis.
 
-#### Training Custom YOLO Models for F1 Racing
+### Training custom YOLO models for F1 racing
 
 This section demonstrates how to train YOLO11n-seg on custom racetrack datasets for autonomous racing applications.
 
@@ -641,7 +666,7 @@ Final metrics: Precision 0.938, Recall 0.929, mAP50 0.957, mAP50-95 0.711
 
 Class accuracy: racetrack 0.92, ego_vehicle 0.96
 
-#### F1 Racetrack Segmentation
+### F1 racetrack segmentation
 
 ![F1 Racetrack Segmentation](resources/f1_lap_segmented.gif)
 
@@ -664,7 +689,7 @@ Detects class 10 (racetrack) and class 3 (ego_vehicle) using `racetrack_model.en
  'trafficlight_yellow_red', 'vertical_parking_free', 'vertical_parking_occupied']
 ```
 
-#### F1 Onboard Instance Segmentation with Roboflow
+### F1 onboard instance segmentation with Roboflow
 
 This section demonstrates training a custom instance segmentation model using Roboflow, then deploying it on the Jetson Orin Nano for real-time inference.
 
@@ -781,6 +806,8 @@ python src/roboflow_inference.py
 ![F1 Las Vegas Segmentation](resources/lasvegasnor4_segmented.gif)
 
 *Real-time instance segmentation on F1 Las Vegas onboard footage, detecting racetrack, kerbs, barriers, and ego vehicle*
+
+---
 
 ## License
 
