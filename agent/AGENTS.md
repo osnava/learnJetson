@@ -100,6 +100,7 @@ markdown in `hw-docs/md/`, citing `doc §section (p. N)`.
 | `hw-docs/fetch.sh` | materialize the hardware corpus as markdown in gitignored `hw-docs/md/` |
 | `hw-docs/grade.py` | citation grader — verify an answer's `doc §section (p. N)` + quote really resolves in the corpus (exit 1 = a citation fails verification; 2 = corpus or document not fetched — not the agent's fault) |
 | `hw-docs/check.sh` | corpus linter, entrypoint to `check.py` (CI runs it on every push) — INDEX routing rows, version pins, memorized answers, conversion smoke, URL HEAD checks; absent docs report SKIP, never PASS |
+| `hw-docs/eval/questions.yaml` | golden question set (issue #24): 26 fixed questions with ground truth, ~40% unanswerable-with-redirect; every answerable item's citation re-verified by `hw-docs/test_questions.py` (CI runs it) — feeds the cold-session runner |
 | `launch_vllm.sh` | Cosmos-Reason2 vLLM launcher — stream to the Jetson, run by path ([runbook](../docs/cosmos-reason2-vllm.md)) |
 | `cosmos-env.example` | template for the Jetson's `~/.cosmos-env` (real file **gitignored**) |
 

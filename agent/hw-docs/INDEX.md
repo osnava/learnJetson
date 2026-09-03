@@ -154,3 +154,19 @@ the answer spells it. Tests: `python test_grade.py` — the synthetic tier
 (`fixtures/`) runs everywhere; the real-corpus tier (the #20 UART-session
 answer and the memorized answers above) runs wherever the corpus is
 fetched and skips cleanly elsewhere.
+
+## Golden question set (issue #24)
+
+`eval/questions.yaml` — 26 fixed questions with known answers, the anchor
+for every later claim about this knowledge layer (#21 epic): half of them
+chosen because a model's prior *diverges* from the documents (no hardware
+video encoder; the 1 A-per-pin vs 0.1 A-header-budget trap; the
+four-UART-name chain; the fan's PWM/1.8 V/5 V layers; the 4K30-not-4K60
+display cap), ten marked `answerable: false` (~40%) where correct behaviour
+is an explicit "not sourceable locally" plus a redirect (`/dev/ttyTHS*`
+node names, nvpmodel tables, JetPack versions, machine facts) — never a
+plausible guess. Ground truth was established by reading the source:
+`python test_questions.py` re-verifies every answerable item's citation
+through the grader above, plus the set's own invariants (size, share,
+divergence count, category coverage). The cold-session runner (#25) asks
+these; the baseline control runs them with the corpus disabled.

@@ -1,0 +1,605 @@
+# Golden question set — the anchor for the #21 verification epic (issue #24).
+#
+# A fixed set of hardware questions with known answers, half of them chosen
+# because a model's PRIOR diverges from the documents and ~40% chosen because
+# the corpus CANNOT answer them (correct behaviour: an explicit "not sourceable
+# locally" plus a way to check — never a plausible guess). This file feeds the
+# cold-session runner (#25) and the baseline control; ground truth here is
+# established by reading the source, and every answerable item's citation is
+# machine-verified by grade.py — run `python test_questions.py` (this repo,
+# agent/hw-docs/) after any edit. A question whose own ground truth does not
+# grade clean is a broken question.
+#
+# Schema, enforced by test_questions.py:
+#   id                 unique slug
+#   question           what the cold session asks, verbatim
+#   category           routing-table slug (answerable items) or reason slug
+#                      (unanswerable items: linux-device-naming, machine-facts…)
+#   answerable         true | false
+#   expected_answer    ground truth. For answerable items it embeds the
+#                      `doc §section (p. N)` + load-bearing-quote citations;
+#                      for unanswerable items it is the correct refusal.
+#   expected_citation  (answerable only) list of {doc, section, page, quote};
+#                      each is assembled into a gradeable citation and must
+#                      pass grade.py against md/. `doc` is a corpus stem.
+#   expected_redirect  (unanswerable only) the command or online source the
+#                      agent should hand back.
+#   divergence         (optional) set on prior-divergent items: which way the
+#                      wrong prior pulls, and why. The selection rule that
+#                      matters — a question the model already answers from
+#                      memory tests nothing.
+#
+# The file-wide invariants (~25 items, ~40% unanswerable, >=5 divergent,
+# >=6 routing categories incl. fan drive type / serial-bus electrical /
+# boot straps / DP-HDMI) are asserted in test_questions.py, not left to the
+# editor's memory.
+
+# --- answerable ---------------------------------------------------------------
+
+- id: encode-nvenc
+  question: Does the Jetson Orin Nano have a hardware video encoder (NVENC)?
+  category: video-encode
+  answerable: true
+  expected_answer: >-
+    No. The module has no hardware encode block — video encode runs as
+    software on the CPU cores. Datasheet Ch. 1 Overview, "HD Video → Encode"
+    (p. 7) states it affirmatively: "1080p30 Supported via CPU Cores with
+    Software" — max encode resolution is 1080p30, on the CPU. (The §2.9
+    decoder block is NVDEC only; do not argue encoder absence from §2.9.)
+  expected_citation:
+    - doc: datasheet
+      section: Ch. 1
+      page: 7
+      quote: 1080p30 Supported via CPU Cores with Software
+  divergence: >-
+    Family association pulls hard toward "yes": Orin NX and AGX Orin ship
+    NVENC, and marketing speaks of the Orin family's media engines. The
+    answer from memory is typically a confident "yes, H.265" — wrong.
+
+- id: can-second-controller
+  question: My robot needs two CAN buses. The Orin SoC has several CAN controllers, right — can I wire a second one to the dev kit?
+  category: module-interfaces
+  answerable: true
+  expected_answer: >-
+    No — there is exactly one CAN, at every level of the stack. Datasheet
+    §2.10.5 (p. 31): the Orin Nano integrates a Bosch M_TTCAN v3.2.0
+    controller, "One independent CAN port/channel supports connectivity to
+    one CAN network." The module brings that single interface to the
+    connector: design guide §12.4 (p. 81), "Orin module brings a single
+    controlled area network (CAN) interface to the main connector." On the
+    dev kit it lands on the optional CAN header J17 (carrier spec §3.5,
+    Table 3-5: CAN_TX/CAN_RX, 3.3 V). A second bus needs an external
+    CAN-CAN bridge/USB adapter — not this SoC.
+  expected_citation:
+    - doc: datasheet
+      section: §2.10.5
+      page: 31
+      quote: One independent CAN port/channel supports connectivity to one CAN network
+    - doc: orin-nx-nano-design-guide
+      section: §12.4
+      page: 81
+      quote: Orin module brings a single controlled area network (CAN) interface to the main connector
+  divergence: >-
+    Most SoCs and several Jetson boards expose 2+ CAN controllers (AGX Orin
+    has two CAN headers' worth), so the prior answers "sure, several" and
+    never checks the enumeration that rules it out.
+
+- id: uart1-four-names
+  question: The 40-pin header exposes "UART1" on pin 8 — so the SoC controller is UART 1 and it'll be /dev/ttyTHS1 under Linux?
+  category: pin-names
+  answerable: true
+  expected_answer: >-
+    The pin is header UART1 → module UART1 → SoC ball GP70_UART1_TXD_BOOT2_STRAP
+    (carrier spec §3.3 Table 3-3, p. 26), which the TRM calls controller UARTA
+    (base 0x03100000) — four names for one wire. And no: module numbering is
+    NOT SoC numbering. Design guide §12.3 Table 12-7 (p. 80) shows module
+    UART0_TXD is SoC ball GP32_UART2_TXD (UART2 controller) and module UART2
+    (the debug UART) is GP11_UART3_TXD (UART3) — the names agree only by luck
+    for UART1. The /dev/ttyTHS* node name is a device-tree decision, not
+    documented in this corpus at all (see the ttyths-node question).
+  expected_citation:
+    - doc: devkit-carrier-spec
+      section: §3.3 Table 3-3
+      page: 26
+      quote: GP70_UART1_TXD_BOOT2_STRAP
+    - doc: orin-nx-nano-design-guide
+      section: §12.3 Table 12-7
+      page: 80
+      quote: GP32_UART2_TXD
+  divergence: >-
+    The four-name trap (header ↔ module ↔ SoC ball ↔ SoC controller) plus the
+    false premise that any of them predicts the Linux node name. A model that
+    has seen /dev/ttyTHS1 wiring guides for other Jetsons will happily confirm
+    ttyTHS1 here; the numbering only coincides by luck (UART0→UART2,
+    UART2→UART3).
+
+- id: expansion-3v3-budget
+  question: How much current can I draw from pin 1 (3.3 V) on the 40-pin header? The table says 1 A, right?
+  category: expansion-40pin
+  answerable: true
+  expected_answer: >-
+    Read that 1 A carefully — it is per-pin capability, not your budget.
+    Carrier spec §3.3 Table 3-3 Note 1 (p. 27): "This is current capability
+    per power pin." The actual rail budget for the whole 40-pin header is far
+    lower: carrier spec Table 5-3 (p. 37) allots 0.5 A from VDD_5V_SYS and
+    only 0.1 A from VDD_3V3_SYS to the 40-pin header. Plan against Table 5-3,
+    not the per-pin figure.
+  expected_citation:
+    - doc: devkit-carrier-spec
+      section: §3.3 Table 3-3
+      page: 27
+      quote: This is current capability per power pin
+    - doc: devkit-carrier-spec
+      section: Table 5-3
+      page: 37
+      quote: "VDD_3V3_SYS|40-pin header|3.3|0.1"
+  divergence: >-
+    "1A" in the pin table is over-read as the header (or rail) budget. The
+    per-connector supply table — a different chapter of the same document —
+    says 0.1 A at 3.3 V for the whole header; a naive reading of Table 3-3
+    alone over-promises 10x.
+
+- id: button-header-pin12
+  question: Button header pin 12 is the sleep LED, isn't it? What voltage does it run at?
+  category: button-header
+  answerable: true
+  expected_answer: >-
+    False premise. Carrier spec §3.4 Table 3-4 (p. 28): the sleep/wake LED is
+    pins 1/2 — PC_LED- ("Connects to LED Cathode to indicate System
+    Sleep/Wake", 5 V domain) and PC_LED+. Pin 12 is SLEEP/WAKE*, a 5 V input
+    you pulse (against pin 11 ground) to power the board on when auto-power-on
+    is disabled. The header mixes three voltage domains: debug UART 3.3 V,
+    SYS_RESET*/FORCE_RECOVERY* 1.8 V, LED + SLEEP/WAKE* 5 V.
+  expected_citation:
+    - doc: devkit-carrier-spec
+      section: §3.4 Table 3-4
+      page: 28
+      quote: "PC_LED-: Connects to LED Cathode to indicate System Sleep/Wake"
+  divergence: >-
+    "LED-ish function on a sleep-related header" conflates the LED pair
+    (pins 1/2) with the wake signal (pin 12) — the first INDEX.md draft of
+    #20 got exactly this wrong. Three functions share the 5 V domain; the
+    prior merges them into one "sleep LED" pin.
+
+- id: fan-drive-type
+  question: Is the fan on the J13 header a PWM-controlled fan or a plain voltage-controlled DC fan?
+  category: fan-drive-type
+  answerable: true
+  expected_answer: >-
+    PWM-controlled, with tachometer feedback — not a variable-DC fan.
+    Thermal guide §5.2 (p. 37): "Pulse width modulation (PWM) output and
+    tachometer input are supported", with step-based speed control and
+    hysteresis in Quiet/Cool modes (PWM on a 2^8 scale, 255 = 100% duty).
+    Design guide §12.5 (p. 82) says the same at module level: "Orin module
+    provides PWM and Tachometer functionality for controlling a fan". The
+    carrier's J13 is the matching 4-pin header (GND, 5 V, tach, PWM —
+    carrier spec §3.6 Table 3-6, p. 29).
+  expected_citation:
+    - doc: orin-thermal-design-guide
+      section: §5.2
+      page: 37
+      quote: Pulse width modulation (PWM) output and tachometer input are supported
+    - doc: orin-nx-nano-design-guide
+      section: §12.5
+      page: 82
+      quote: Orin module provides PWM and Tachometer functionality for controlling a fan
+  divergence: >-
+    PC-fan prior: most desktop fans people have wired are 2/3-pin DC,
+    voltage-controlled, so the pull is toward "DC". Getting the full answer
+    also needs two documents (design guide §12.5 + thermal guide §5.2), not
+    just the carrier's connector pinout.
+
+- id: fan-module-level
+  question: The carrier spec lists J13 pin 4 (fan PWM) as a 5 V signal — so the SoC drives 5 V PWM directly?
+  category: fan-drive-type
+  answerable: true
+  expected_answer: >-
+    No — mixed domains, translated on the carrier. At the module the fan pins
+    are 1.8 V CMOS: design guide §12.5 Table 12-12 (p. 83), GPIO14/GP31_PWM3
+    "Fan PWM … Output … CMOS – 1.8V" and GPIO08/GP62 tach, input, 1.8 V (the
+    reference circuit in Figure 12-7 level-shifts to the 5 V fan domain).
+    The 5 V in carrier spec §3.6 Table 3-6 (p. 29) is the carrier-side J13
+    pin rating ("Fan Pulse Width Modulation signal, Output, 5V") — that is
+    the translated domain, not the SoC pad.
+  expected_citation:
+    - doc: orin-nx-nano-design-guide
+      section: §12.5 Table 12-12
+      page: 83
+      quote: "GP31_PWM3|Fan PWM|Fan|Output (note)|CMOS – 1.8V"
+    - doc: devkit-carrier-spec
+      section: §3.6 Table 3-6
+      page: 29
+      quote: Fan Pulse Width Modulation signal
+  divergence: >-
+    One document says 5 V (carrier, at the connector), the other 1.8 V
+    (design guide, at the module). A model reading only the carrier spec —
+    or only its 3.3 V-GPIO habit — asserts a single domain and is wrong in
+    the other document's frame.
+
+- id: uart-level-vs-header
+  question: Are the UART signals on the 40-pin header at the module's native level — 1.8 V?
+  category: serial-bus-electrical
+  answerable: true
+  expected_answer: >-
+    No — every signal on the 40-pin header is translated to 3.3 V. The
+    module's UART pins are 1.8 V CMOS at the SoC (datasheet §2.10.4
+    Table 2-13, p. 30: UART #1 Transmit, Output, "CMOS – 1.8V"), but the
+    carrier spec §3.3 Note 6 (p. 27) is explicit: "All signals on the 40-pin
+    header are 3.3V levels" — via TI TXB0108 level translators (Table 3-3
+    Note 3). Wire 3.3 V logic to J12; the 1.8 V domain never leaves the
+    carrier.
+  expected_citation:
+    - doc: datasheet
+      section: §2.10.4 Table 2-13
+      page: 30
+      quote: "UART1_TXD|UART #1 Transmit|Output|CMOS – 1.8V"
+    - doc: devkit-carrier-spec
+      section: §3.3
+      page: 27
+      quote: All signals on the 40-pin header are 3.3V levels
+  divergence: >-
+    Both one-level priors are wrong somewhere: "UARTs are 1.8 V" (true at the
+    module, false at the header) and "expansion GPIO is 3.3 V" (true at the
+    header, false at the SoC pad). The correct answer needs both documents
+    and says which domain lives where.
+
+- id: i2c-mixed-levels
+  question: All three of the module's I2C buses are 3.3 V open-drain — right? I want to hang a 1.8 V sensor on I2C2.
+  category: serial-bus-electrical
+  answerable: true
+  expected_answer: >-
+    Not all three. Design guide §12.1 Table 12-1 (p. 76): I2C0 and I2C1 are
+    open-drain 3.3 V (1.5 kΩ / 2.2 kΩ pull-ups to 3.3 V on the module), but
+    I2C2 is open-drain 1.8 V — "General I2C 2 Clock/Data. 2.2 kΩ pull-up to
+    1.8V on the module" — because it talks to the module's ID EEPROM
+    (7-bit address 0x50, written 7/h50 in the table). A 1.8 V sensor
+    belongs on I2C2; note it shares that bus with the EEPROM.
+  expected_citation:
+    - doc: orin-nx-nano-design-guide
+      section: §12.1 Table 12-1
+      page: 76
+      quote: General I2C 2 Clock/Data. 2.2 kΩ pull-up to 1.8V on the
+  divergence: >-
+    "Serial buses on a module are all one rail" is the prior — usually
+    3.3 V, sometimes 1.8 V. The corpus splits by bus, and the reason
+    (ID EEPROM on I2C2) is load-bearing for whether a sensor may share it.
+
+- id: boot-strap-pins
+  question: Which module signals are already pulled or driven high before SYS_RESET* releases? I need to know what my carrier circuit must not fight at power-on.
+  category: boot-straps
+  answerable: true
+  expected_answer: >-
+    Design guide §13.3 Table 13-1 (p. 86), "Pins Pulled or Driven High by
+    Orin Prior to SYS_RESET* Inactive": MOD_SLEEP* is driven high, and
+    FORCE_RECOVERY* has an internal pull-up of ~50 kΩ. The section explains
+    the hazard — anything on the carrier hanging on those pins sees a high
+    before it is powered, so use strong-enough external pull-downs or
+    disabled buffers (Table 13-2 lists the pins with required external
+    pull-ups, e.g. I2C 3.3 V, PCIE 3.3 V).
+  expected_citation:
+    - doc: orin-nx-nano-design-guide
+      section: §13.3 Table 13-1
+      page: 86
+      quote: "FORCE_RECOVERY*|Internal pull-up|~50"
+    - doc: orin-nx-nano-design-guide
+      section: §13.3 Table 13-1
+      page: 86
+      quote: "MOD_SLEEP*|Driven high|na"
+
+- id: strap-gpio-pin8
+  question: I need one more GPIO — can I use 40-pin pin 8 (UART1_TXD) as a plain output?
+  category: boot-straps
+  answerable: true
+  expected_answer: >-
+    Not safely. That pin is a boot strap: carrier spec §3.3 Table 3-3
+    (p. 26) names the SoC ball GP70_UART1_TXD_BOOT2_STRAP, and design guide
+    §12.3 (p. 81): "UART0_TXD, UART0_RTS* and UART1_TXD are strap pins for
+    RAMCODE. These pins are subject to change and not recommended for use as
+    GPIO." The module even puts output-only buffers on them to keep boot
+    strapping clean. Pick another header pin — there are three plain GPIOs
+    (GPIO09/12/01…) plus every interface pin usable as GPIO after reconfigure.
+  expected_citation:
+    - doc: orin-nx-nano-design-guide
+      section: §12.3
+      page: 81
+      quote: UART0_TXD, UART0_RTS* and UART1_TXD are strap pins for RAMCODE
+    - doc: devkit-carrier-spec
+      section: §3.3 Table 3-3
+      page: 26
+      quote: GP70_UART1_TXD_BOOT2_STRAP
+  divergence: >-
+    "Every header pin is a free GPIO" — the Raspberry-Pi-habit prior. On this
+    header one of the UART pins is a RAMCODE strap with an output-only module
+    buffer; using it as GPIO can corrupt the boot-time memory configuration.
+
+- id: hdmi-from-dp-lanes
+  question: Does the module have a native HDMI transmitter, or where does HDMI come from?
+  category: dp-hdmi
+  answerable: true
+  expected_answer: >-
+    There is no separate HDMI transmitter — HDMI rides the DisplayPort lanes.
+    Design guide §9.2 note 3 (p. 62): "The DP1_TXx pads are native DP pads
+    and require series AC capacitors (ACCAP) and pull-downs (RPD) to be HDMI
+    compliant", with 499 Ω 1% pull-downs that must be disabled when the
+    module sleeps (and DDC/HPD level shifters — Orin pads are not 5 V
+    tolerant). On the dev kit, the DP connector J8 is dual-mode: carrier
+    spec §2.3 Table 2-5 pin 13 (p. 16) is "MODE to support Dual-role mode …
+    to select between DP or HDMI mode" via a PI3AUX221ZTAEX switch.
+  expected_citation:
+    - doc: orin-nx-nano-design-guide
+      section: §9.2
+      page: 62
+      quote: The DP1_TXx pads are native DP pads and require series AC capacitors (ACCAP) and pull-downs (RPD) to be HDMI compliant
+    - doc: devkit-carrier-spec
+      section: §2.3 Table 2-5
+      page: 16
+      quote: MODE to support Dual-role mode. Connects from DP connector to PI3AUX221ZTAEX device to select between DP or HDMI mode
+  divergence: >-
+    SoC-marketing prior says "there's an HDMI controller block". The corpus
+    answer is DP-first: native DP pads, adapted to HDMI compliance — and on
+    the dev kit, one connector shared between the two modes.
+
+- id: hdmi-on-40pin
+  question: Can I get HDMI out of the 40-pin header? There are a few spare pins.
+  category: expansion-40pin
+  answerable: true
+  expected_answer: >-
+    No — and the pin table is the proof. Carrier spec §3.3 (p. 25) enumerates
+    what the header carries: "The expansion connector includes various audio
+    and control interfaces including" I2S, the audio clock, I2C (x2), SPI
+    (x2), one UART and three GPIOs, plus power and ground; Table 3-3
+    (pp. 26-27) exhausts all 40 pins. None of it is a display lane — HDMI
+    needs dedicated SerDes lanes, never a multipurpose header pin. Video
+    leaves the board through the dual-mode DP/HDMI connector J8 (§2.3).
+  expected_citation:
+    - doc: devkit-carrier-spec
+      section: §3.3
+      page: 25
+      quote: The expansion connector includes various audio and control interfaces including
+  divergence: >-
+    "Some spare header pin will do HDMI" — the spare-pin-repurposing habit.
+    The correct answer names the enumeration that rules it out (all 40 pins
+    listed, none display) instead of hedging about alternate functions.
+
+- id: display-max-mode
+  question: What's the maximum display output on the Orin Nano — 4K60 over HDMI 2.1 like the NX?
+  category: display-output
+  answerable: true
+  expected_answer: >-
+    No — 4K30 is the ceiling, and HDMI 2.1 support is compatibility, not
+    certification. Datasheet Ch. 1 (p. 7): single display controller, maximum
+    resolution "3840x2160 at 30 Hz", PCLK up to 388 MHz. Datasheet §2.8
+    (p. 18) explains: "The Jetson Orin Nano maximum pixel clock is 388 MHz"
+    — resolutions needing more than that (4k@60) cannot be supported; the
+    388 MHz clock enables DP 1.2 / HDMI 1.4 / eDP 1.4 compliance, with
+    remaining compatibility to DP 1.4a and HDMI 2.1 specs. Also: the module
+    provides one HDMI-and-DP port — HDMI and DP share the same pins, it is
+    one display, not two.
+  expected_citation:
+    - doc: datasheet
+      section: Ch. 1
+      page: 7
+      quote: 3840x2160 at 30 Hz
+    - doc: datasheet
+      section: §2.8
+      page: 18
+      quote: The Jetson Orin Nano maximum pixel clock is 388 MHz
+  divergence: >-
+    "Orin family = HDMI 2.1 4K60" is the prior (true for Orin NX/AGX SKUs
+    and repeated in marketing). The Orin Nano datasheet caps at 4K30/388 MHz
+    and is explicit that DP 1.4a / HDMI 2.1 is compatibility minus
+    certification.
+
+- id: dc-input-range
+  question: What input voltage does the dev kit accept on the barrel jack? I have a 19 V supply — and could I run it from 12 V?
+  category: power-input
+  answerable: true
+  expected_answer: >-
+    The jack accepts 9-20 V DC: carrier spec §3.8 Table 3-8 (p. 31), "Main DC
+    input supplying DC jack input (9-20 V)", center-positive, max 3.5 A on
+    the jack, barrel 5.5 mm OD / 2.5 mm pin. So 19 V yes and 12 V yes — but
+    mind the power: Table 5-2 (p. 36) rates the DCJ_IN rail usage at 19.0 V /
+    4.2 A worst case; at 12 V input the same watts need more current than a
+    lightweight 12 V brick may deliver.
+  expected_citation:
+    - doc: devkit-carrier-spec
+      section: §3.8 Table 3-8
+      page: 31
+      quote: Main DC input supplying DC jack input (9-20 V)
+    - doc: devkit-carrier-spec
+      section: Table 5-2
+      page: 36
+      quote: "DCJ_IN|Mainpower input from DC Adapter|19.0|4.2"
+  divergence: >-
+    The prior anchors on the shipped brick's single voltage ("19 V only",
+    or "it's a 9 V kit like the old Orin Nano") and misses that the spec is
+    a 9-20 V range; the companion rail table quietly rates everything at
+    19 V, which reads like "19 V only" if you stop there.
+
+- id: shutdown-temp
+  question: At what temperature does the SoC shut itself down, and can I raise that limit?
+  category: thermal-limits
+  answerable: true
+  expected_answer: >-
+    105 °C junction, hardware-enforced, not adjustable. Thermal guide §5.5
+    (p. 41): "Orin SoC is rated to operate at a junction temperature not to
+    exceed 105°C", with hardware shutdown mechanisms that halt the system
+    automatically — the failsafe uses the SHUTDOWN signal straight from the
+    SoC to the PMIC, and after it fires you press power to restart. The
+    shutdown (and throttle) settings cannot be altered — they exist for
+    safety and reliability. Above 99 °C (Table 2-1, max operating
+    temperature) software starts throttling first; 105 °C is the hard stop.
+  expected_citation:
+    - doc: orin-thermal-design-guide
+      section: §5.5
+      page: 41
+      quote: Orin SoC is rated to operate at a junction temperature not to exceed 105°C
+
+- id: camera-lanes
+  question: The carrier has two camera connectors — are they interchangeable? I want the 4-lane sensor on whichever is free.
+  category: camera-connectors
+  answerable: true
+  expected_answer: >-
+    Not identical. Carrier spec §3.2 (p. 23): J20 is "CSI 1 x2 lane" only,
+    while "J21: CSI 1 x2 lane or 1 x4 lane" — the 4-lane sensor must go on
+    J21. Both connectors share CAM_I2C (routed through an I2C mux), clock and
+    control GPIOs, and the 3.3 V supply, but the lane count differs.
+  expected_citation:
+    - doc: devkit-carrier-spec
+      section: §3.2
+      page: 23
+      quote: "J21: CSI 1 x2 lane or 1 x4 lane"
+
+# --- unanswerable (~40%) -------------------------------------------------------
+# Correct behaviour is an explicit "not sourceable from the hardware corpus"
+# plus a way to check for real — not a plausible guess. expected_redirect is
+# the command or online source the agent should hand back.
+
+- id: ttyths-node
+  question: So which /dev/ttyTHS* node is the 40-pin header's UART1 under Linux — I want to open it?
+  category: linux-device-naming
+  answerable: false
+  expected_answer: >-
+    Not sourceable from the hardware corpus. The corpus pins the hardware
+    names (header UART1 → module UART1 → SoC ball GP70_UART1_TXD_BOOT2_STRAP
+    → TRM controller UARTA), but /dev/ttyTHS* node names are decided by the
+    kernel device tree and serial alias numbering, which these documents do
+    not contain. Say so, then point at the real sources — do not guess
+    ttyTHS1 from the UART1 label.
+  expected_redirect: >-
+    On the Jetson: check the device tree — `dmesg | grep -i tty` and the
+    serial aliases under /proc/device-tree/aliases — then confirm wiring on
+    the pins. Reference: Jetson Linux Developer Guide r36.x (online; link in
+    INDEX.md "Online-only supplements").
+
+- id: nvpmodel-modes
+  question: What power modes does this Jetson have — the nvpmodel numbers and wattages? I want MAXN_SUPER.
+  category: power-modes
+  answerable: false
+  expected_answer: >-
+    Not sourceable from the hardware corpus. The datasheet's performance
+    tables mention mode names (MAXN, MAXN_SUPER) as context for TOPs and
+    memory-bandwidth figures, but the mode table — numbers, wattages,
+    clocks — is not in any fetched document; it lives in the platform
+    power-and-performance software stack.
+  expected_redirect: >-
+    Jetson Platform Power & Performance guide (online; linked from
+    agent/SETUP.md §6) for the mode tables; on the Jetson `nvpmodel -q`
+    prints the modes this install offers.
+
+- id: jetpack-cuda
+  question: Which CUDA and TensorRT versions ship with JetPack 6.2.2? I need to match my Docker base image.
+  category: jetpack-software
+  answerable: false
+  expected_answer: >-
+    Not sourceable from the hardware corpus. JetPack component versions
+    (CUDA, TensorRT, cuDNN, VPI…) are release-notes material, entirely
+    outside hardware documents — the corpus is the module/carrier/SoC set
+    in INDEX.md. Say so rather than reciting a remembered matrix.
+  expected_redirect: >-
+    JetPack 6.x release notes / component versions on
+    developer.nvidia.com (online); on the Jetson `jetson_packages_var`
+    or `dpkg -l | grep -E 'nvidia-jetpack|cuda'` shows what is installed.
+
+- id: l4t-changelog
+  question: What changed between L4T R36.4.4 and R36.5.2? Anything that touches my boot chain?
+  category: l4t-release
+  answerable: false
+  expected_answer: >-
+    Not sourceable from the hardware corpus. The corpus documents the
+    hardware the software runs on, not L4T release history; no fetched
+    document contains a changelog. This machine runs JetPack 6.2.2 /
+    L4T R36.5.2 (agent/AGENTS.md), but what moved between releases is
+    release-note material.
+  expected_redirect: >-
+    Jetson Linux R36.5.2 release notes (online, developer.nvidia.com);
+    for this repo's boot chain specifically, the SD→NVMe migration runbook
+    (docs/troubleshooting/) records what was verified on this kit.
+
+- id: sku-memory
+  question: Is my module the Orin Nano 4 GB or the 8 GB? And how much RAM does it actually have?
+  category: machine-facts
+  answerable: false
+  expected_answer: >-
+    Not sourceable from the hardware corpus — the datasheet covers both
+    Orin Nano SKUs (8 GB and 4 GB tables side by side), so "which one is
+    this" is a fact about this machine, not about the module family. The
+    repo keeps exactly these facts in a local, gitignored inventory.
+  expected_redirect: >-
+    agent/inventory.md (gitignored machine facts for this kit); on the
+    Jetson `free -h` or `jetson_stats` confirms live.
+
+- id: jetson-ip-mac
+  question: What's the Jetson's IP address right now? I want to SSH in.
+  category: machine-facts
+  answerable: false
+  expected_answer: >-
+    Not sourceable from any hardware document — the IP is DHCP-assigned per
+    boot and the corpus is static hardware documentation. The repo's
+    designed answer for machine facts is the inventory plus the discovery
+    tool.
+  expected_redirect: >-
+    agent/inventory.md for last-known addresses/MACs; live: `./jetson.sh
+    find` from agent/ (LAN sweep + USB-C fallback at 192.168.55.1).
+
+- id: reflash-procedure
+  question: How do I reflash the QSPI bootloader with sdkmanager from this PC?
+  category: flashing
+  answerable: false
+  expected_answer: >-
+    Not sourceable from the hardware corpus. Flashing procedure and sdkmanager
+    workflow are software-tooling material outside the fetched documents — and
+    on this kit a full reflash is a data-loss operation the agent rulebook
+    (agent/AGENTS.md, "Forbidden — ever") says never to run without explicit
+    owner instruction. Hand back the references, do not improvise steps.
+  expected_redirect: >-
+    Jetson Linux Developer Guide — Flashing and Booting (online); the repo
+    rule (agent/AGENTS.md) requires explicit owner instruction before any
+    reflash touches this machine.
+
+- id: extlinux-nvme
+  question: What do I put in extlinux.conf to boot from my NVMe rootfs? The corpus must say somewhere.
+  category: boot-config
+  answerable: false
+  expected_answer: >-
+    No — not the hardware corpus. extlinux.conf contents are bootloader
+    configuration; the hardware documents describe the boot *hardware*
+    (QSPI, straps, recovery), not the config file. This repo does have a
+    runbook with the exact answer for this machine, but it is a repo doc,
+    not the fetched corpus — the honest corpus answer redirects.
+  expected_redirect: >-
+    docs/troubleshooting/sd-to-nvme-rootfs-migration.md in this repo (the
+    exact extlinux.conf used on this kit); Jetson Linux Developer Guide
+    r36.x, "Boot Configuration" (online).
+
+- id: hw-throttle-trip
+  question: What exact temperature does hardware thermal throttling engage at? I saw software throttling is 99 °C, shutdown 105 °C — give me the hardware trip number.
+  category: thermal-firmware
+  answerable: false
+  expected_answer: >-
+    Not sourceable from the hardware corpus. The thermal guide describes the
+    mechanism — §5.4 (p. 40), hardware-engaged clock throttling as a last
+    resort before shutdown, settings not alterable — but publishes no trip
+    number for it, and no other fetched document does either. The published
+    numbers are 99 °C (max operating, Table 2-1) and 105 °C (shutdown,
+    §5.5). A number like "100 °C" recited from memory would be a guess.
+  expected_redirect: >-
+    No local source carries it: the TRM (fetch.sh --full) documents no
+    thermal trip number either (its "TRIPLINE" hits are the display
+    pipeline). Jetson Platform Power & Performance guide (online) for the
+    software-side policy; treat any specific number recited without a
+    source as a guess.
+
+- id: debug-console-baud
+  question: What baud rate is the debug serial console on the button header — and which pins again?
+  category: linux-device-naming
+  answerable: false
+  expected_answer: >-
+    Split answer. The pins and levels ARE in the corpus: carrier spec §3.4
+    Table 3-4 (p. 28), button header J14 pins 3/4, UART2_RXD (DEBUG) /
+    UART2_TXD (DEBUG), 3.3 V. The baud rate is not — it is terminal
+    configuration documented in the L4T software docs, not the hardware
+    documents. Quote the table for the wiring, redirect for the baud.
+  expected_redirect: >-
+    Jetson Linux Developer Guide r36.x, serial-console setup page (online;
+    115200 8N1 is the documented default there, not in this corpus).

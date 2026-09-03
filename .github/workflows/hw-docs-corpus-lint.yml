@@ -27,7 +27,7 @@ jobs:
           python-version: "3.12"
 
       - name: install converter dependencies
-        run: pip install pymupdf pymupdf4llm openpyxl
+        run: pip install pymupdf pymupdf4llm openpyxl pyyaml
 
       - name: fetch the core corpus (datasheet stays login-gated)
         run: bash agent/hw-docs/fetch.sh --core
@@ -36,6 +36,7 @@ jobs:
         run: |
           python agent/hw-docs/test_grade.py
           python agent/hw-docs/test_check.py
+          python agent/hw-docs/test_questions.py
 
       - name: lint the corpus
         run: bash agent/hw-docs/check.sh
