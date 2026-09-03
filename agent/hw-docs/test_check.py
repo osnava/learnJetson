@@ -198,7 +198,8 @@ class RealCorpusTier(unittest.TestCase):
         code, out = lint_real()
         self.assertEqual(code, 0, out)
         self.assertIn("routing table (27 data rows)", out)
-        self.assertIn("1.2p pinned, 1.2 in TRM title page", out)
+        if (REAL / "orin-trm.md").is_file():  # CI fetches --core: no TRM
+            self.assertIn("1.2p pinned, 1.2 in TRM title page", out)
         self.assertIn("0 failed", out)
 
     def test_broken_section_reference_fails(self):
