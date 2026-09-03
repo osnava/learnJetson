@@ -11,6 +11,12 @@
 agent/inventory.sh
 agent/inventory.md
 
+# Hardware-doc corpus — fetched & converted on demand (agent/hw-docs/fetch.sh),
+# never committed (NVIDIA redistribution terms; the committed map is INDEX.md)
+agent/hw-docs/pdf/
+agent/hw-docs/md/
+agent/hw-docs/__pycache__/
+
 # Cosmos serving env — the real file lives on the Jetson (~/.cosmos-env), never in the repo
 agent/cosmos-env
 .cosmos-env
