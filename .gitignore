@@ -24,3 +24,9 @@ agent/cosmos-env
 # Local handoff docs — environment details never go in a public repo
 JETSON_DEV_HANDOFF.md
 JETSON_RECOVERY_HANDOFF.md
+
+# Local agent-tool wiring — read from disk by the tools, never published
+/graft/
+/.mcp.json
+/.ignore
+/AGENTS.md
