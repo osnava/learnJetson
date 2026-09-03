@@ -106,6 +106,12 @@ Two answers worth memorizing (both verified against the corpus):
 Refresh check: at every JetPack bump, compare versions against the
 [Jetson Download Center](https://developer.nvidia.com/embedded/downloads)
 (search the document title) and update this table + `fetch.sh` together.
+Or just run `./check.sh` — it verifies the on-disk documents against
+these pins, every routing row against the corpus, the memorized answers'
+pages, conversion smoke (anchors == PDF pages, heading floors), and the
+manifest URLs (HTML on a direct link = stale). CI does the same on every
+push with `--core` (see `.github/workflows/`); absent documents report
+SKIP, never PASS.
 
 ## Converter
 

@@ -1,0 +1,41 @@
+# Corpus lint (issue #23) — the deterministic half of the #21 epic.
+# Fetches the core corpus (~9 MB) and runs the static linter against it.
+# The data sheet is NVIDIA-login-gated: it is *expected* to be missing
+# here, and check.sh reports it as SKIPPED — a skip is never a pass, so
+# the build cannot go green because the corpus is incomplete.
+name: hw-docs corpus lint
+
+on:
+  push:
+    paths:
+      - agent/hw-docs/**
+      - .github/workflows/hw-docs-corpus-lint.yml
+  pull_request:
+    paths:
+      - agent/hw-docs/**
+      - .github/workflows/hw-docs-corpus-lint.yml
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install converter dependencies
+        run: pip install pymupdf pymupdf4llm openpyxl
+
+      - name: fetch the core corpus (datasheet stays login-gated)
+        run: bash agent/hw-docs/fetch.sh --core
+
+      - name: unit tests (synthetic tier everywhere; real tier where fetched)
+        run: |
+          python agent/hw-docs/test_grade.py
+          python agent/hw-docs/test_check.py
+
+      - name: lint the corpus
+        run: bash agent/hw-docs/check.sh

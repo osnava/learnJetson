@@ -164,7 +164,7 @@ class Citation:
     span: tuple[int, int] = field(default=(0, 0))  # citation extent in the paragraph
 
 
-def _sections_in(text: str):
+def sections_in(text: str):
     """Yield (start, end, token, kind) for every section-like token."""
     found = []
     for kind, pat in SEC_PATTERNS:
@@ -174,31 +174,53 @@ def _sections_in(text: str):
     return found
 
 
+def page_cites(text: str):
+    """Every page marker — `(p. N)` and the bare `p. N` (which also fires
+    inside "(doc.md §3.3 …, p. 26)", where the paren wraps the whole
+    citation). The bare form's lookbehind stops it re-matching inside
+    `(p. N)` itself. Shared by the grader and the corpus linter."""
+    return sorted(list(PAGE_PAREN_RE.finditer(text)) + list(PAGE_BARE_RE.finditer(text)),
+                  key=lambda m: m.start())
+
+
+def claim_sections(pages, secs):
+    """Attach each section token to the nearest page cite that follows it
+    within SEC_ATTACH_CHARS. Returns one claim list per page cite."""
+    claimed = [[] for _ in pages]
+    used = set()
+    for s in secs:
+        for i, pm in enumerate(pages):
+            if s[0] in used or s[1] > pm.start():
+                continue
+            if pm.start() - s[1] <= SEC_ATTACH_CHARS:
+                claimed[i].append(s)
+                used.add(s[0])
+                break
+    return claimed
+
+
+def quote_needle(quote: str) -> str:
+    """A quote folded to its comparison skeleton, minus the answer's own
+    terminal punctuation ("…nominal." for a corpus line that continues)."""
+    n = normalize(quote).strip(".,;:!?…")
+    return n or normalize(quote)
+
+
 def parse_answer(text: str) -> list[Citation]:
     text = unicodedata.normalize("NFKC", text).translate(_FOLD)
     citations: list[Citation] = []
     for para in PARA_SPLIT_RE.split(text):
-        pages = sorted(list(PAGE_PAREN_RE.finditer(para)) + list(PAGE_BARE_RE.finditer(para)),
-                       key=lambda m: m.start())
+        pages = page_cites(para)
         if not pages:
             continue
 
-        secs = _sections_in(para)
+        secs = sections_in(para)
         docs = list(DOC_RE.finditer(para))
         quotes = list(QUOTE_RE.finditer(para))
 
         # Attach sections: a section token belongs to the nearest (p. N)
         # that follows it within SEC_ATTACH_CHARS.
-        claimed: list[list[tuple[int, int, str, str]]] = [[] for _ in pages]
-        used = set()
-        for s in secs:
-            for i, pm in enumerate(pages):
-                if s[0] in used or s[1] > pm.start():
-                    continue
-                if pm.start() - s[1] <= SEC_ATTACH_CHARS:
-                    claimed[i].append(s)
-                    used.add(s[0])
-                    break
+        claimed = claim_sections(pages, secs)
 
         # Attach documents: rightmost doc token before the citation's first
         # section; inherit the previous citation's doc when none (supports
@@ -264,7 +286,7 @@ class Heading:
     title: str
 
 
-def _headings(text: str) -> list[Heading]:
+def headings(text: str) -> list[Heading]:
     """Headings with an identifiable number; unnumbered ones can neither be
     cited as §sections nor end another section's span."""
     out: list[Heading] = []
@@ -288,7 +310,7 @@ def _headings(text: str) -> list[Heading]:
     return out
 
 
-def _token_lookups(token: str, kind: str) -> list[tuple[str, str]]:
+def token_lookups(token: str, kind: str) -> list[tuple[str, str]]:
     """Section token -> the heading (kind, label) lookups it requires.
 
     A range §3.1-3.8 requires both endpoints; the citing page may sit
@@ -338,7 +360,7 @@ def _section_span(text: str, anchors: list[tuple[int, int]], headings: list[Head
     return pages, h
 
 
-def _page_text(text: str, anchors: list[tuple[int, int]], page: int) -> str | None:
+def page_text(text: str, anchors: list[tuple[int, int]], page: int) -> str | None:
     starts = [pos for p, pos in anchors if p == page]
     if not starts:
         return None
@@ -405,17 +427,17 @@ def grade(citations: list[Citation], corpus_dir: Path) -> list[Result]:
                                   [f"{c.stem}.md has no <!-- p.N --> page anchors — "
                                    "converted with the pdftotext fallback?"]))
             continue
-        headings = _headings(text)
+        heads = headings(text)
 
         # every section token must resolve; each contributes its page set,
         # merged across range endpoints; the primary (first) token's pages
         # are what the cited page must belong to
         missing, page_sets = [], []
         for tok, kind in c.secs:
-            lookups = _token_lookups(tok, kind)
+            lookups = token_lookups(tok, kind)
             got = []
             for lk_kind, lk_label in lookups:
-                sp = _section_span(text, anchors, headings, lk_kind, lk_label)
+                sp = _section_span(text, anchors, heads, lk_kind, lk_label)
                 if sp is None:
                     missing.append(tok)
                     break
@@ -444,14 +466,11 @@ def grade(citations: list[Citation], corpus_dir: Path) -> list[Result]:
                 if verdict == "OK":
                     verdict = "NO_QUOTE"
             else:
-                page_text = _page_text(text, anchors, c.page)
-                # The answer's sentence punctuation may trail the quote
-                # ("…nominal." for a corpus line that just continues); the
-                # quote's own terminal punctuation is not evidence either way.
-                needle = normalize(c.quote).strip(".,;:!?…") or normalize(c.quote)
-                if page_text is None:
+                ptext = page_text(text, anchors, c.page)
+                needle = quote_needle(c.quote)
+                if ptext is None:
                     quote_bad = f"{c.stem}.md has no p.{c.page} anchor"
-                elif needle not in normalize(page_text):
+                elif needle not in normalize(ptext):
                     quote_bad = "quote does not occur on the cited page"
                 else:
                     quote_bad = None

@@ -30,6 +30,14 @@ real_corpus = unittest.skipUnless(
     any(REAL.glob("*.md")), "corpus not fetched (run agent/hw-docs/fetch.sh)")
 
 
+def needs(*stems: str):
+    """Skip unless these specific docs are fetched — CI runs --core, where
+    the login-gated datasheet and the --full giants are deliberately absent."""
+    return unittest.skipUnless(
+        all((REAL / f"{s}.md").is_file() for s in stems),
+        "not fetched: " + ", ".join(s for s in stems if not (REAL / f"{s}.md").is_file()))
+
+
 def run_cli(answer: str | None, corpus: Path, *extra: str,
             stdin: str = "") -> subprocess.CompletedProcess:
     """Run grade.py as a subprocess; answer=None means stdin."""
@@ -209,6 +217,7 @@ class RealCorpusTest(unittest.TestCase):
     """The UART-session answer (issue #20) and INDEX's memorized answers
     against the actual fetched corpus."""
 
+    @needs("devkit-carrier-spec")
     def test_uart_session_answer_grades_clean(self):
         results = grade.grade(grade.parse_answer(
             (FIXTURES / "uart-session-answer.md").read_text(encoding="utf-8")), REAL)
@@ -216,6 +225,7 @@ class RealCorpusTest(unittest.TestCase):
         # parenthesized "§3.4 (p. 28)" — both must grade, both must pass
         self.assertEqual([r.verdict for r in results], ["OK", "OK"], results)
 
+    @needs("devkit-carrier-spec")
     def test_uart_session_answer_page_shifted_by_one_is_caught(self):
         # the historical bug, mechanically: the same answer citing p. 29
         done = run_cli(str(FIXTURES / "uart-session-answer.corrupt-page.md"), REAL)
@@ -231,6 +241,7 @@ class RealCorpusTest(unittest.TestCase):
         corrupt = (FIXTURES / "uart-session-answer.corrupt-page.md").read_text(encoding="utf-8")
         self.assertEqual(clean.replace("p. 28", "p. 29"), corrupt)
 
+    @needs("devkit-carrier-spec")
     def test_uart_answer_br_wrapped_table_quote_resolves(self):
         # the PC_LED- cell is `...indicate System<br>Sleep/Wake (Off when
         # system in sleepmode)` — quoted with a space, from a table
@@ -240,6 +251,7 @@ class RealCorpusTest(unittest.TestCase):
         self.assertTrue(quoted, "PC_LED quote must be found and paired")
         self.assertEqual(quoted[0].verdict, "OK")
 
+    @needs("datasheet")
     def test_index_memorized_datasheet_answer(self):
         r = one('No hardware video encoder on Orin Nano — `datasheet.md` '
                 'Ch. 1 Overview, "HD Video → Encode" (p. 7), states it '
@@ -247,6 +259,7 @@ class RealCorpusTest(unittest.TestCase):
                 REAL)
         self.assertEqual(r.verdict, "OK", r.notes)
 
+    @needs("devkit-carrier-spec")
     def test_index_uart1_citation_from_issue_21(self):
         # 40-pin header UART pins: §3.3 Table 3-3 p. 26; the pin-8 cell wraps
         # an identifier mid-token with <br> — quoted here without spaces
@@ -255,6 +268,7 @@ class RealCorpusTest(unittest.TestCase):
                 'Output/Bidir.', REAL)
         self.assertEqual(r.verdict, "OK", r.notes)
 
+    @needs("datasheet")
     def test_datasheet_decode_table_citation(self):
         # §2.9 + Table 2-5 (INDEX routing row): the table opens on p. 20 —
         # hand-written citations assuming p. 21 (the TOC's printed page + a
