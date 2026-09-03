@@ -69,6 +69,21 @@ Adapt `agent/AGENTS.md`: it encodes the safety contract for any agent on this
 machine (allowed / ask-first / forbidden). Keep the structure even if you
 change the specifics.
 
+Fetch the hardware-doc corpus so hardware questions get grounded answers
+instead of guesses (datasheet, carrier-board spec, pinmux, thermal/design
+guides — converted to greppable markdown, gitignored). Do this **on the PC
+you operate the agent from** — the Jetson stores and serves none of it:
+
+```bash
+pip install pymupdf4llm openpyxl    # converter (falls back to poppler pdftotext)
+agent/hw-docs/fetch.sh              # ~9 MB; --full adds the 66 MB SoC TRM + schematics
+```
+
+The data sheet itself sits behind NVIDIA's (free) login — `fetch.sh`
+prints the one-time manual step when it detects it. The routing table
+from question to doc-section lives in
+[`agent/hw-docs/INDEX.md`](hw-docs/INDEX.md).
+
 **Verify:**
 
 ```bash
@@ -203,3 +218,4 @@ detections at ~2–4 ms inference on the locked-clock Orin Nano Super.
 | ☐ | Agent key-auth works; scoped sudo validated; no password in any chat |
 | ☐ | YOLO engine inference verified in-container |
 | ☐ | AGENTS.md adapted; inventory filled (and gitignored) |
+| ☐ | Hardware corpus fetched — `ls agent/hw-docs/md/` shows the converted docs; INDEX.md routes |

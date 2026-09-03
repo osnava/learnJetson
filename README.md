@@ -47,7 +47,7 @@ This repository supports multiple AI/ML workloads. Choose the setup that matches
 - [INT8 TensorRT engine benchmarks](docs/performance/int8-tensorrt-engines.md)
 - [NVDEC hardware decode notes](docs/performance/nvdec-decode-notes.md)
 - [Cosmos-Reason2-2B + vLLM serving runbook](docs/cosmos-reason2-vllm.md)
-- [AI agent guide](agent/AGENTS.md) — [Setup guide (new Jetson)](agent/SETUP.md) · [Field notes & lessons](agent/FIELD_NOTES.md)
+- [AI agent guide](agent/AGENTS.md) — [Setup guide (new Jetson)](agent/SETUP.md) · [Field notes & lessons](agent/FIELD_NOTES.md) · [Hardware docs index](agent/hw-docs/INDEX.md) (datasheet/TRM/carrier spec as greppable markdown, fetched on clone)
 - [License](#license)
 
 ---

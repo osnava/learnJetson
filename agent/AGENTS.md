@@ -8,7 +8,9 @@ is a safe, repeatable statement — for the owner and for anyone adopting this r
 [`inventory.md`](inventory.md) (machine facts, gitignored) →
 [SETUP.md](SETUP.md) if you're bringing up a **new** Jetson with this kit →
 [FIELD_NOTES.md](FIELD_NOTES.md) for the *why* behind these rules, with
-sources → the [runbooks](../docs/troubleshooting/README.md) when something breaks.
+sources → [`hw-docs/INDEX.md`](hw-docs/INDEX.md) the moment a question
+touches hardware → the [runbooks](../docs/troubleshooting/README.md) when
+something breaks.
 
 ## The machine (see `inventory.md` — gitignored — for real values)
 
@@ -18,6 +20,24 @@ sources → the [runbooks](../docs/troubleshooting/README.md) when something bre
   [the migration runbook](../docs/troubleshooting/sd-to-nvme-rootfs-migration.md) before
   touching anything storage-related.
 - Access: SSH with a key (BatchMode-friendly). DHCP address varies per boot.
+
+## Hardware questions — answer from primary docs
+
+Anything about pins, voltage domains, connectors, power rails, video
+encode/decode engines, thermal limits, registers: route it through
+[`hw-docs/INDEX.md`](hw-docs/INDEX.md) and answer from the fetched
+markdown in `hw-docs/md/`, citing `doc §section (p. N)`.
+
+- Corpus not fetched yet? Run `hw-docs/fetch.sh` (~9 MB core; `--full`
+  adds the SoC TRM + carrier schematics). The data sheet itself is
+  NVIDIA-login-gated — one-time manual download, the script prints how.
+  The corpus lives on **this PC** — operator-side knowledge; nothing is
+  fetched to or stored on the Jetson.
+- Authority order: **Data Sheet / Carrier Board Spec / TRM** → Jetson
+  Linux Developer Guide (online) → NVIDIA forums/blogs (leads only,
+  never the sole source).
+- Cross-check pin answers against the Pin & Function Names guide — pin
+  naming differs between Data Sheet, TRM, and design files.
 
 ## Discovery — always in this order
 
@@ -76,6 +96,8 @@ sources → the [runbooks](../docs/troubleshooting/README.md) when something bre
 | `jetson.sh` | find / ssh / status / health / logs / dropcache — the agent's hands |
 | `inventory.md` | real IPs/MACs/UUIDs (**gitignored — never commit**) |
 | `inventory.example.md` | template for the above |
+| `hw-docs/INDEX.md` | hardware-question routing table: question → doc §section (p. N) |
+| `hw-docs/fetch.sh` | materialize the hardware corpus as markdown in gitignored `hw-docs/md/` |
 | `launch_vllm.sh` | Cosmos-Reason2 vLLM launcher — stream to the Jetson, run by path ([runbook](../docs/cosmos-reason2-vllm.md)) |
 | `cosmos-env.example` | template for the Jetson's `~/.cosmos-env` (real file **gitignored**) |
 
