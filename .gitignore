@@ -30,4 +30,5 @@ JETSON_RECOVERY_HANDOFF.md
 /.mcp.json
 /.ignore
 /AGENTS.md
-agent/hw-docs/explore/
+agent/hw-docs/explore/*
+!agent/hw-docs/explore/FINDINGS.md
