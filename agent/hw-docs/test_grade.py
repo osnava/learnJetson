@@ -26,8 +26,12 @@ FIXTURES = HERE / "fixtures"
 SYNTH = FIXTURES / "md"
 REAL = HERE / "md"
 
+# v2 transition (issue #28): fetch.sh now produces the docling corpus;
+# the v1 grader/linter no longer apply to it (rebuilt in #29/#30) - skip
+# loudly rather than fail against a substrate they were never tuned for.
 real_corpus = unittest.skipUnless(
-    any(REAL.glob("*.md")), "corpus not fetched (run agent/hw-docs/fetch.sh)")
+    any(REAL.glob("*.md")) and not any((HERE / "md/index").glob("*.chunks.jsonl")),
+    "corpus not fetched, or is v2 docling output (v1 real tier; #29/#30 rebuild it)")
 
 
 def needs(*stems: str):

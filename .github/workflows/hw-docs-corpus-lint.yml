@@ -1,9 +1,14 @@
-# Corpus lint (issue #23) — the deterministic half of the #21 epic.
-# Fetches the core corpus (~9 MB) and runs the static linter against it.
-# The data sheet is NVIDIA-login-gated: it is *expected* to be missing
-# here, and check.sh reports it as SKIPPED — a skip is never a pass, so
-# the build cannot go green because the corpus is incomplete.
-name: hw-docs corpus lint
+# Corpus lint — the deterministic half of the #21 epic.
+#
+# v2 transition (issue #28, 2026-09-07): fetch.sh now converts with
+# docling (multi-GB models, GPU-friendly) — too heavy for a per-push
+# runner, so CI no longer fetches/converts the corpus. Corpus
+# conversion and the corpus-dependent lint run operator-side (see
+# agent/hw-docs/v2/README.md). CI keeps: the synthetic unit tiers
+# (committed fixtures carry the contract; docling-dependent tiers SKIP
+# loudly — a skip is never a pass) and the corpus-independent linter
+# sections (URL/version pins). The full CI story is #30's scope.
+name: hw-docs unit tests
 
 on:
   push:
@@ -26,17 +31,19 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: install converter dependencies
-        run: pip install pymupdf pymupdf4llm openpyxl pyyaml
+      - name: install test dependencies
+        run: pip install openpyxl numpy pyyaml
 
-      - name: fetch the core corpus (datasheet stays login-gated)
-        run: bash agent/hw-docs/fetch.sh --core
-
-      - name: unit tests (synthetic tier everywhere; real tier where fetched)
+      - name: unit tests (synthetic tier; corpus/docling tiers SKIP loudly)
         run: |
           python agent/hw-docs/test_grade.py
           python agent/hw-docs/test_check.py
           python agent/hw-docs/test_questions.py
+          python agent/hw-docs/v2/test_normalize.py
+          python agent/hw-docs/v2/test_search.py
+          python agent/hw-docs/v2/test_build.py
 
-      - name: lint the corpus
-        run: bash agent/hw-docs/check.sh
+      # check.py needs the fetched corpus (it FAILs — correctly — on the
+      # memorized answers when the corpus is absent), so the corpus lint
+      # runs operator-side during the v2 transition. #30 rebuilds the
+      # linter against the docling substrate and rewires this job.

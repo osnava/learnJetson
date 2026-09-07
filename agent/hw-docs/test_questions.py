@@ -133,8 +133,9 @@ class StructureTier(unittest.TestCase):
         self.assertGreaterEqual(len(answerable_cats), MIN_ROUTING_CATEGORIES)
 
 
-real_corpus = unittest.skipUnless(any(REAL.glob("*.md")),
-                                  "corpus not fetched (run agent/hw-docs/fetch.sh)")
+real_corpus = unittest.skipUnless(
+    any(REAL.glob("*.md")) and not any((HERE / "md/index").glob("*.chunks.jsonl")),
+    "corpus not fetched, or is v2 docling output (v1 real tier; #29/#30 rebuild it)")
 
 
 @real_corpus

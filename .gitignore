@@ -16,6 +16,7 @@ agent/inventory.md
 agent/hw-docs/pdf/
 agent/hw-docs/md/
 agent/hw-docs/__pycache__/
+agent/hw-docs/v2/__pycache__/
 
 # Cosmos serving env — the real file lives on the Jetson (~/.cosmos-env), never in the repo
 agent/cosmos-env

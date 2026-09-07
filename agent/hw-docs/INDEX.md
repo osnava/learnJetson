@@ -1,5 +1,16 @@
 # INDEX.md — hardware questions: route, then answer with a citation
 
+> **Substrate change in flight (issue #28, 2026-09-07):** `fetch.sh` now
+> builds the corpus with docling (v2): `md/<doc>.md` is the rendering,
+> `md/<doc>.json` is the source of truth with per-object page provenance,
+> and `md/index/` holds semantic-search shards. The v1 pymupdf caveats
+> below (split table headers, figure cull, `<!-- p.N -->` anchors) no
+> longer describe the fetched corpus — pages now come from JSON/chunk
+> provenance, and when INDEX routing misses, run
+> `python v2/search.py "question"` before declaring a question
+> not-sourceable. This routing table gets fully re-verified against the
+> v2 corpus in issue #30.
+
 > The agent's map of the hardware-document corpus for this machine
 > (P3766 dev kit = P3767 module + P3768 carrier, JetPack 6.2.2 / L4T R36.5.2).
 > `./fetch.sh` materializes the documents as markdown in `md/` (gitignored).
@@ -7,15 +18,10 @@
 > budget ~160 MB on disk after `--full` — PDFs, markdown and figures together.
 > The corpus lives **on the PC the agent operates from** — nothing is
 > fetched to or stored on the Jetson itself. Originals cache in `pdf/`.
-> Figures are extracted to `md/images/<doc>/` and linked inline where they
-> appear (a cull pass drops repeated decorations and sub-120 px fragments,
-> and collapses duplicate copies to one — that was 97% of the TRM's raw
-> haul; repeat *links* survive, repointed). Identify a figure by
-> the extracted picture-text next to its link; **never assert what a
-> figure shows unless your harness truly renders images** — for humans,
-> the cached PDF at the cited page is authoritative. Every converted page
-> starts with a `<!-- p.N -->` anchor — cite answers as `doc §section
-> (p. N)`.
+> Figures: docling v2 exports image placeholders only — never assert what
+> a figure shows; for humans, the cached PDF at the cited page is
+> authoritative. Cite answers as `doc §section (p. N)` — the page comes
+> from docling object provenance (`v2/search.py` prints it).
 
 ## Protocol (mirrored in AGENTS.md)
 
@@ -106,12 +112,12 @@ Two answers worth memorizing (both verified against the corpus):
 Refresh check: at every JetPack bump, compare versions against the
 [Jetson Download Center](https://developer.nvidia.com/embedded/downloads)
 (search the document title) and update this table + `fetch.sh` together.
-Or just run `./check.sh` — it verifies the on-disk documents against
-these pins, every routing row against the corpus, the memorized answers'
-pages, conversion smoke (anchors == PDF pages, heading floors), and the
-manifest URLs (HTML on a direct link = stale). CI does the same on every
-push with `--core` (see `.github/workflows/`); absent documents report
-SKIP, never PASS.
+The v1 linter (`./check.sh`) is superseded by the v2 substrate: its
+anchor/heading checks are invalid against docling output, and CI no
+longer fetches the corpus (synthetic unit tiers only) — #30 rebuilds
+the linter against JSON provenance (page count == PDF pages) and
+rewires CI; until then, corpus verification is operator-side
+(`fetch.sh` idempotence + `v2/search.py` probes).
 
 ## Converter
 

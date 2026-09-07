@@ -26,13 +26,23 @@ something breaks.
 Anything about pins, voltage domains, connectors, power rails, video
 encode/decode engines, thermal limits, registers: route it through
 [`hw-docs/INDEX.md`](hw-docs/INDEX.md) and answer from the fetched
-markdown in `hw-docs/md/`, citing `doc §section (p. N)`.
+markdown in `hw-docs/md/`, citing `doc §section (p. N)`. Retrieval
+order (issue #28): **route → search → declare**, in that order —
+
+1. **Route** through INDEX.md; read/grep the routed section.
+2. Routing misses? **Search** the provenance-carrying index:
+   `python hw-docs/v2/search.py "question"` — hits carry
+   `doc §heading (p. N)` with pages resolved from docling object
+   provenance (exit 2 = index not built; run `fetch.sh`, not your fault).
+3. Still nothing? **Declare the question not sourceable locally** and
+   redirect (online Jetson docs / the human) — never a plausible guess.
 
 - Corpus not fetched yet? Run `hw-docs/fetch.sh` (~9 MB core; `--full`
-  adds the SoC TRM + carrier schematics). The data sheet itself is
-  NVIDIA-login-gated — one-time manual download, the script prints how.
-  The corpus lives on **this PC** — operator-side knowledge; nothing is
-  fetched to or stored on the Jetson.
+  adds the SoC TRM + carrier schematics; the TRM conversion is a ~7 h
+  background grind, resumable — see `hw-docs/v2/README.md`). The data
+  sheet itself is NVIDIA-login-gated — one-time manual download, the
+  script prints how. The corpus lives on **this PC** — operator-side
+  knowledge; nothing is fetched to or stored on the Jetson.
 - Authority order: **Data Sheet / Carrier Board Spec / TRM** → Jetson
   Linux Developer Guide (online) → NVIDIA forums/blogs (leads only,
   never the sole source).
@@ -97,9 +107,10 @@ markdown in `hw-docs/md/`, citing `doc §section (p. N)`.
 | `inventory.md` | real IPs/MACs/UUIDs (**gitignored — never commit**) |
 | `inventory.example.md` | template for the above |
 | `hw-docs/INDEX.md` | hardware-question routing table: question → doc §section (p. N) |
-| `hw-docs/fetch.sh` | materialize the hardware corpus as markdown in gitignored `hw-docs/md/` |
+| `hw-docs/fetch.sh` | materialize the hardware corpus with docling (v2): JSON source of truth + md rendering + search index, in gitignored `hw-docs/md/` |
+| `hw-docs/v2/search.py` | provenance-carrying semantic search over the corpus index — step 2 of route → search → declare |
 | `hw-docs/grade.py` | citation grader — verify an answer's `doc §section (p. N)` + quote really resolves in the corpus (exit 1 = a citation fails verification; 2 = corpus or document not fetched — not the agent's fault) |
-| `hw-docs/check.sh` | corpus linter, entrypoint to `check.py` (CI runs it on every push) — INDEX routing rows, version pins, memorized answers, conversion smoke, URL HEAD checks; absent docs report SKIP, never PASS |
+| `hw-docs/check.sh` | v1 corpus linter, entrypoint to `check.py` — superseded by the v2 docling substrate (#28); its corpus checks are invalid against `md/` until #30 rebuilds it. CI no longer runs it (synthetic unit tiers only). |
 | `hw-docs/eval/questions.yaml` | golden question set (issue #24): 26 fixed questions with ground truth, ~40% unanswerable-with-redirect; every answerable item's citation re-verified by `hw-docs/test_questions.py` (CI runs it) — feeds the cold-session runner |
 | `launch_vllm.sh` | Cosmos-Reason2 vLLM launcher — stream to the Jetson, run by path ([runbook](../docs/cosmos-reason2-vllm.md)) |
 | `cosmos-env.example` | template for the Jetson's `~/.cosmos-env` (real file **gitignored**) |

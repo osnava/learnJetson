@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """Convert one fetched hardware document into agent-greppable markdown.
 
+DEPRECATED (issue #28, 2026-09-07): fetch.sh no longer calls this module.
+The v2 docling substrate (v2/build.py) replaces the PDF engine, the
+figure cull, and the pdftotext fallback; page provenance moved from
+`<!-- p.N -->` anchors to JSON object provenance. The xlsx→csv path was
+inherited verbatim into v2/build.py (explicitly outside the rebuild's
+hard wall). This file is deleted when the #30 linter lands — kept only
+as reference until then. See v2/README.md for the retirement table.
+
 PDF  -> md/<name>.md with a `<!-- p.N -->` anchor before every page, so
         answers can cite "doc, section, p. N" the way INDEX.md asks for.
 XLSX -> md/<name>.md (sheet index) + one CSV per sheet beside it — pinmux
