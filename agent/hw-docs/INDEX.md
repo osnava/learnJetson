@@ -27,12 +27,13 @@
 
 1. Route the question through the table below; read/grep that section.
 2. Answer with `doc §section (p. N)` and quote the load-bearing line.
-   That combination is machine-checkable: `python grade.py <answer.md>`
+   That combination is machine-checkable: `python v2/grade.py <answer.md>`
    (or pipe via stdin) verifies every citation resolves at the cited page
    — exit 0 clean, 1 = a citation fails verification (wrong section or
    page, quote not at the page, quote missing, or a document that is not
    in the corpus; the p. 29-vs-p. 28 bug class from #20), 2 = corpus or
-   document not fetched, which is not the agent's fault.
+   document not fetched — or fetched without a docling JSON to verify
+   against — which is not the agent's fault.
 3. Document missing? Run `./fetch.sh` before guessing. Datasheet absent?
    It is NVIDIA-login-gated — one-time manual download (fetch.sh prints how).
 4. Authority order: **Data Sheet / Carrier Board Spec / TRM** →
@@ -145,21 +146,30 @@ the row below it — carrier Table 3-4 renders as
 `|**Pin**||**Module**||**Type/Dir**|` before the row naming all five
 columns. Map columns off the second row, not the first.
 
-## Citation grader (issue #22)
+## Citation grader (issues #22 → #29)
 
-`grade.py` judges one thing per citation — *real or invented?* — in four
-steps: document resolves to `md/<doc>.md` (a name that is no corpus stem
-fails as `DOC_UNKNOWN` — it can never be fetched), every cited
-`§section`/`Ch.`/`Table` heading exists, the page falls inside the
-section's span (a page counts only when it carries section content past
-the running header — that's why §3.4 spans 28-28 and a p. 29 cite fails),
-and the quoted line occurs on the cited page. Quotes are compared after
-NFKC + whitespace/`<br>`/emphasis normalization, so a cell pymupdf4llm
-wrapped mid-token (`GP70_UART1_T<br>XD_BOOT2_STR<br>AP`) matches however
-the answer spells it. Tests: `python test_grade.py` — the synthetic tier
-(`fixtures/`) runs everywhere; the real-corpus tier (the #20 UART-session
-answer and the memorized answers above) runs wherever the corpus is
-fetched and skips cleanly elsewhere.
+`v2/grade.py` judges one thing per citation — *real or invented?* — and
+every check is structural, resolved against the docling JSON source of
+truth (`md/<doc>.json`, per-object `prov.page_no`): the document resolves
+to a corpus stem (a name that is no corpus stem fails as `DOC_UNKNOWN` —
+it can never be fetched), the cited `§section`/`Ch.`/`Table`/`§name`
+heading object exists in the JSON, the cited page falls inside the
+section's span (the pages of the body items between that heading and the
+one that closes it — running headers/footers are furniture and never
+count, which is why §3.4 spans 28-28 and a p. 29 cite fails by
+construction), and the quoted line occurs in that page's
+provenance-ordered items. Quote comparison is one normalization
+(`v2/normalize.py`, shared with the renderer and search) plus a
+whitespace-insensitive final form, so a cell wrapped mid-cell, a token
+the PDF wrapped (`GP70_UART1_T XD_BOOT2_STR AP`), a dehyphenated line
+(`Auto-Power- On` quoted as `Auto-Power-On`), and pipes from the md
+rendering (`VDD_3V3_SYS|40-pin header|3.3|0.1`) all match however the
+answer spells them. A fetched doc without a JSON (the TRM's slab mode)
+grades `NO_PROVENANCE` — soft, never a pass. Tests: `python
+v2/test_grade.py` — the synthetic tier (`v2/fixtures/demo-doc.json`, a
+committed docling doc) runs everywhere; the real-corpus tier (the #20
+UART-session answer, the memorized answers above, and the #29 probes)
+runs wherever the corpus is fetched and skips cleanly elsewhere.
 
 ## Golden question set (issue #24)
 

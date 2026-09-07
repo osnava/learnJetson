@@ -42,6 +42,7 @@ jobs:
           python agent/hw-docs/v2/test_normalize.py
           python agent/hw-docs/v2/test_search.py
           python agent/hw-docs/v2/test_build.py
+          python agent/hw-docs/v2/test_grade.py
 
       # check.py needs the fetched corpus (it FAILs — correctly — on the
       # memorized answers when the corpus is absent), so the corpus lint

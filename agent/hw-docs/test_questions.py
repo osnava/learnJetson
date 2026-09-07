@@ -8,23 +8,32 @@ Two tiers, like test_grade.py / test_check.py:
     late in #20 (fan drive type, serial-bus electrical, boot straps,
     DP/HDMI), and a well-formed schema. Runs anywhere (needs PyYAML).
     - real-corpus tier: every answerable item's expected_citation is
-    assembled into a gradeable answer and must pass grade.py against the
-    fetched corpus — a question whose own ground truth does not grade
-    clean is a broken question. Citations into documents that are not
-    fetched count as skips (CI fetches --core; the datasheet is
-    login-gated) — a skip is never a pass, and no citation may ever FAIL.
+    assembled into a gradeable answer and must pass the v2 structural
+    grader (v2/grade.py, issue #29) against the fetched docling corpus —
+    a question whose own ground truth does not grade clean is a broken
+    question. Citations into documents that are not fetched count as
+    skips (CI fetches --core; the datasheet is login-gated) — a skip is
+    never a pass, and no citation may ever FAIL.
 
 Run: python agent/hw-docs/test_questions.py
 """
 from __future__ import annotations
 
+import importlib.util
 import sys
 import unittest
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
-import grade  # noqa: E402  (citation machinery shared with the runner)
+sys.path.insert(0, str(HERE / "v2"))  # v2/grade.py's sibling imports (normalize)
+
+# The citation machinery (shared with the runner): v2's structural grader.
+# Loaded under its own module name so hw-docs/grade.py (v1, retired with
+# #30's sweep) can never shadow it — or be shadowed by it.
+_spec = importlib.util.spec_from_file_location("v2_grade", HERE / "v2" / "grade.py")
+grade = importlib.util.module_from_spec(_spec)
+sys.modules["v2_grade"] = grade
+_spec.loader.exec_module(grade)
 
 import yaml  # noqa: E402  (pip install pyyaml — in the CI pip line)
 
@@ -134,8 +143,8 @@ class StructureTier(unittest.TestCase):
 
 
 real_corpus = unittest.skipUnless(
-    any(REAL.glob("*.md")) and not any((HERE / "md/index").glob("*.chunks.jsonl")),
-    "corpus not fetched, or is v2 docling output (v1 real tier; #29/#30 rebuild it)")
+    any(REAL.glob("*.json")),
+    "v2 corpus (docling JSON) not fetched — run agent/hw-docs/fetch.sh")
 
 
 @real_corpus
@@ -155,7 +164,7 @@ class RealCorpusTier(unittest.TestCase):
                              f"{item['id']}: a citation did not parse into a "
                              "gradeable claim — check doc/section/page syntax")
             for r in results:
-                if r.verdict in ("DOC_MISSING", "NO_ANCHORS"):
+                if r.verdict in ("DOC_MISSING", "NO_PROVENANCE"):
                     skipped += 1  # corpus gap, not a broken question (CI: --core)
                 else:
                     graded += 1

@@ -1,13 +1,12 @@
 """Tests for grade.py — issue #22 acceptance criteria.
 
-Two tiers:
-  - synthetic corpus (fixtures/md/, committed): deterministic, runs anywhere
-  - real corpus (md/, gitignored): the UART-session fixture and INDEX's
-    memorized answers against the actual fetched documents; skipped when
-    the corpus has not been fetched — on such a machine the grader itself
-    must say DOC_MISSING, which the synthetic tier covers.
+Synthetic tier only (fixtures/md/, committed): the v1 grader verifies
+text-stream `<!-- p.N -->` anchors, a substrate fetch.sh no longer
+produces. Its real tier was retired with the v2 structural grader
+(v2/grade.py + v2/test_grade.py, issue #29) — the UART-session fixture
+and INDEX's memorized answers now grade there, against the docling JSON.
 
-Run: python agent/hw-docs/test_grade.py   (or: python -m unittest discover agent/hw-docs)
+Run: python agent/hw-docs/test_grade.py
 """
 from __future__ import annotations
 
@@ -24,22 +23,6 @@ import grade  # noqa: E402
 
 FIXTURES = HERE / "fixtures"
 SYNTH = FIXTURES / "md"
-REAL = HERE / "md"
-
-# v2 transition (issue #28): fetch.sh now produces the docling corpus;
-# the v1 grader/linter no longer apply to it (rebuilt in #29/#30) - skip
-# loudly rather than fail against a substrate they were never tuned for.
-real_corpus = unittest.skipUnless(
-    any(REAL.glob("*.md")) and not any((HERE / "md/index").glob("*.chunks.jsonl")),
-    "corpus not fetched, or is v2 docling output (v1 real tier; #29/#30 rebuild it)")
-
-
-def needs(*stems: str):
-    """Skip unless these specific docs are fetched — CI runs --core, where
-    the login-gated datasheet and the --full giants are deliberately absent."""
-    return unittest.skipUnless(
-        all((REAL / f"{s}.md").is_file() for s in stems),
-        "not fetched: " + ", ".join(s for s in stems if not (REAL / f"{s}.md").is_file()))
 
 
 def run_cli(answer: str | None, corpus: Path, *extra: str,
@@ -215,71 +198,6 @@ class CliTest(unittest.TestCase):
         self.assertEqual(done.returncode, 0)
         self.assertIn("no citations", done.stderr)
 
-
-@real_corpus
-class RealCorpusTest(unittest.TestCase):
-    """The UART-session answer (issue #20) and INDEX's memorized answers
-    against the actual fetched corpus."""
-
-    @needs("devkit-carrier-spec")
-    def test_uart_session_answer_grades_clean(self):
-        results = grade.grade(grade.parse_answer(
-            (FIXTURES / "uart-session-answer.md").read_text(encoding="utf-8")), REAL)
-        # two citations in the fixture: bare "…Table 3-4, p. 28:" and the
-        # parenthesized "§3.4 (p. 28)" — both must grade, both must pass
-        self.assertEqual([r.verdict for r in results], ["OK", "OK"], results)
-
-    @needs("devkit-carrier-spec")
-    def test_uart_session_answer_page_shifted_by_one_is_caught(self):
-        # the historical bug, mechanically: the same answer citing p. 29
-        done = run_cli(str(FIXTURES / "uart-session-answer.corrupt-page.md"), REAL)
-        self.assertEqual(done.returncode, 1)
-        self.assertIn("PAGE_OUTSIDE_SECTION", done.stdout)
-        self.assertNotIn("OK —", done.stdout)
-
-    def test_corrupt_fixture_differs_only_in_the_page(self):
-        # the twins must never drift: the corrupt one is exactly the clean
-        # answer with p. 28 shifted to p. 29, or the test above proves
-        # nothing about page-shift detection
-        clean = (FIXTURES / "uart-session-answer.md").read_text(encoding="utf-8")
-        corrupt = (FIXTURES / "uart-session-answer.corrupt-page.md").read_text(encoding="utf-8")
-        self.assertEqual(clean.replace("p. 28", "p. 29"), corrupt)
-
-    @needs("devkit-carrier-spec")
-    def test_uart_answer_br_wrapped_table_quote_resolves(self):
-        # the PC_LED- cell is `...indicate System<br>Sleep/Wake (Off when
-        # system in sleepmode)` — quoted with a space, from a table
-        results = grade.grade(grade.parse_answer(
-            (FIXTURES / "uart-session-answer.md").read_text(encoding="utf-8")), REAL)
-        quoted = [r for r in results if r.citation.quote and "PC_LED" in r.citation.quote]
-        self.assertTrue(quoted, "PC_LED quote must be found and paired")
-        self.assertEqual(quoted[0].verdict, "OK")
-
-    @needs("datasheet")
-    def test_index_memorized_datasheet_answer(self):
-        r = one('No hardware video encoder on Orin Nano — `datasheet.md` '
-                'Ch. 1 Overview, "HD Video → Encode" (p. 7), states it '
-                'affirmatively: "1080p30 Supported via CPU Cores with Software."',
-                REAL)
-        self.assertEqual(r.verdict, "OK", r.notes)
-
-    @needs("devkit-carrier-spec")
-    def test_index_uart1_citation_from_issue_21(self):
-        # 40-pin header UART pins: §3.3 Table 3-3 p. 26; the pin-8 cell wraps
-        # an identifier mid-token with <br> — quoted here without spaces
-        r = one('J12 pin 8 is UART1_TXD (devkit-carrier-spec.md §3.3 Table 3-3, '
-                'p. 26) — ball name "GP70_UART1_T<br>XD_BOOT2_STR<br>AP", '
-                'Output/Bidir.', REAL)
-        self.assertEqual(r.verdict, "OK", r.notes)
-
-    @needs("datasheet")
-    def test_datasheet_decode_table_citation(self):
-        # §2.9 + Table 2-5 (INDEX routing row): the table opens on p. 20 —
-        # hand-written citations assuming p. 21 (the TOC's printed page + a
-        # wrong offset guess) are exactly what this grader exists to catch.
-        r = one('Decode silicon (datasheet.md §2.9 Table 2-5, p. 20) covers '
-                'H.264 "Baseline, Main, High" up to 4K30.', REAL)
-        self.assertEqual(r.verdict, "OK", r.notes)
 
 
 if __name__ == "__main__":

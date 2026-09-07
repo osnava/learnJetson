@@ -1,0 +1,97 @@
+{
+  "schema_name": "docling.Document",
+  "version": "1.4.0",
+  "name": "demo-doc",
+  "origin": {"mimetype": "application/pdf", "filename": "demo-doc.pdf"},
+  "furniture": {"self_ref": "#/furniture", "children": []},
+  "body": {
+    "self_ref": "#/body",
+    "children": [
+      {"$ref": "#/texts/0"},
+      {"$ref": "#/texts/1"},
+      {"$ref": "#/texts/2"},
+      {"$ref": "#/texts/4"},
+      {"$ref": "#/texts/3"},
+      {"$ref": "#/tables/0"},
+      {"$ref": "#/texts/5"},
+      {"$ref": "#/texts/6"},
+      {"$ref": "#/texts/7"},
+      {"$ref": "#/texts/8"},
+      {"$ref": "#/texts/9"},
+      {"$ref": "#/texts/10"},
+      {"$ref": "#/texts/11"},
+      {"$ref": "#/texts/12"},
+      {"$ref": "#/texts/13"},
+      {"$ref": "#/texts/14"},
+      {"$ref": "#/texts/15"},
+      {"$ref": "#/texts/16"},
+      {"$ref": "#/texts/17"},
+      {"$ref": "#/texts/18"}
+    ]
+  },
+  "groups": [],
+  "texts": [
+    {"self_ref": "#/texts/0", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "section_header", "prov": [{"page_no": 1, "charspan": [0, 22]}], "orig": "Chapter 1. Introduction", "text": "Chapter 1. Introduction", "level": 1},
+    {"self_ref": "#/texts/1", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "section_header", "prov": [{"page_no": 1, "charspan": [0, 20]}], "orig": "1.1 Widget Overview", "text": "1.1 Widget Overview", "level": 1},
+    {"self_ref": "#/texts/2", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "text", "prov": [{"page_no": 1, "charspan": [0, 41]}], "orig": "The widget supply rail is 3.3 V nominal.", "text": "The widget supply rail is 3.3 V nominal."},
+    {"self_ref": "#/texts/3", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "section_header", "prov": [{"page_no": 2, "charspan": [0, 20]}], "orig": "1.2 Status Registers", "text": "1.2 Status Registers", "level": 1},
+    {"self_ref": "#/texts/4", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "furniture", "label": "page_header", "prov": [{"page_no": 1, "charspan": [0, 11]}], "orig": "Demo Document", "text": "Demo Document"},
+    {"self_ref": "#/texts/5", "parent": {"$ref": "#/tables/0"}, "children": [], "content_layer": "body", "label": "caption", "prov": [{"page_no": 2, "charspan": [0, 31]}], "orig": "Table 1-1. Status register bits.", "text": "Table 1-1. Status register bits."},
+    {"self_ref": "#/texts/6", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "section_header", "prov": [{"page_no": 2, "charspan": [0, 6]}], "orig": "Notes:", "text": "Notes:", "level": 1},
+    {"self_ref": "#/texts/7", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "text", "prov": [{"page_no": 2, "charspan": [0, 35]}], "orig": "Bits are read-only after self-test.", "text": "Bits are read-only after self-test."},
+    {"self_ref": "#/texts/8", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "section_header", "prov": [{"page_no": 3, "charspan": [0, 23]}], "orig": "1.3 Absolute Maximums", "text": "1.3 Absolute Maximums", "level": 1},
+    {"self_ref": "#/texts/9", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "text", "prov": [{"page_no": 3, "charspan": [0, 34]}], "orig": "Absolute maximum is 125 degrees C.", "text": "Absolute maximum is 125 degrees C."},
+    {"self_ref": "#/texts/10", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "furniture", "label": "page_header", "prov": [{"page_no": 4, "charspan": [0, 11]}], "orig": "Demo Document", "text": "Demo Document"},
+    {"self_ref": "#/texts/11", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "furniture", "label": "page_footer", "prov": [{"page_no": 4, "charspan": [0, 15]}], "orig": "SP-000 v0.1 | 4", "text": "SP-000 v0.1 | 4"},
+    {"self_ref": "#/texts/12", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "text", "prov": [{"page_no": 5, "charspan": [0, 34]}], "orig": "Absolute maximum is 125 degrees C.", "text": "Absolute maximum is 125 degrees C."},
+    {"self_ref": "#/texts/13", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "section_header", "prov": [{"page_no": 6, "charspan": [0, 15]}], "orig": "Deep Sleep Mode", "text": "Deep Sleep Mode", "level": 1},
+    {"self_ref": "#/texts/14", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "text", "prov": [{"page_no": 6, "charspan": [0, 33]}], "orig": "Rails sequenced down in ordered stages.", "text": "Rails sequenced down in ordered stages."},
+    {"self_ref": "#/texts/15", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "section_header", "prov": [{"page_no": 6, "charspan": [0, 6]}], "orig": "Encode", "text": "Encode", "level": 1},
+    {"self_ref": "#/texts/16", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "text", "prov": [{"page_no": 6, "charspan": [0, 46]}], "orig": "1080p30 Supported via CPU Cores with Software", "text": "1080p30 Supported via CPU Cores with Software"},
+    {"self_ref": "#/texts/17", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "section_header", "prov": [{"page_no": 7, "charspan": [0, 16]}], "orig": "Chapter 2. Errata", "text": "Chapter 2. Errata", "level": 1},
+    {"self_ref": "#/texts/18", "parent": {"$ref": "#/body"}, "children": [], "content_layer": "body", "label": "text", "prov": [{"page_no": 7, "charspan": [0, 23]}], "orig": "Errata are listed online.", "text": "Errata are listed online."}
+  ],
+  "pictures": [],
+  "tables": [
+    {
+      "self_ref": "#/tables/0",
+      "parent": {"$ref": "#/body"},
+      "children": [{"$ref": "#/texts/5"}],
+      "content_layer": "body",
+      "label": "table",
+      "prov": [{"page_no": 2, "charspan": [0, 0]}],
+      "captions": [{"$ref": "#/texts/5"}],
+      "references": [],
+      "footnotes": [],
+      "data": {
+        "table_cells": [
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 0, "end_row_offset_idx": 1, "start_col_offset_idx": 0, "end_col_offset_idx": 1, "text": "Bit", "column_header": true, "row_header": false, "row_section": false, "fillable": false},
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 0, "end_row_offset_idx": 1, "start_col_offset_idx": 1, "end_col_offset_idx": 2, "text": "Name", "column_header": true, "row_header": false, "row_section": false, "fillable": false},
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 0, "end_row_offset_idx": 1, "start_col_offset_idx": 2, "end_col_offset_idx": 3, "text": "Meaning", "column_header": true, "row_header": false, "row_section": false, "fillable": false},
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 1, "end_row_offset_idx": 2, "start_col_offset_idx": 0, "end_col_offset_idx": 1, "text": "0", "column_header": false, "row_header": true, "row_section": false, "fillable": false},
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 1, "end_row_offset_idx": 2, "start_col_offset_idx": 1, "end_col_offset_idx": 2, "text": "WIDGET_RDY", "column_header": false, "row_header": false, "row_section": false, "fillable": false},
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 1, "end_row_offset_idx": 2, "start_col_offset_idx": 2, "end_col_offset_idx": 3, "text": "Widget ready for use.", "column_header": false, "row_header": false, "row_section": false, "fillable": false},
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 2, "end_row_offset_idx": 3, "start_col_offset_idx": 0, "end_col_offset_idx": 1, "text": "1", "column_header": false, "row_header": true, "row_section": false, "fillable": false},
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 2, "end_row_offset_idx": 3, "start_col_offset_idx": 1, "end_col_offset_idx": 2, "text": "WIDGET_ERR", "column_header": false, "row_header": false, "row_section": false, "fillable": false},
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 2, "end_row_offset_idx": 3, "start_col_offset_idx": 2, "end_col_offset_idx": 3, "text": "WIDGET_ERR: Multi word error text\ncontinues on this wrapped cell", "column_header": false, "row_header": false, "row_section": false, "fillable": false},
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 3, "end_row_offset_idx": 4, "start_col_offset_idx": 0, "end_col_offset_idx": 1, "text": "2", "column_header": false, "row_header": true, "row_section": false, "fillable": false},
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 3, "end_row_offset_idx": 4, "start_col_offset_idx": 1, "end_col_offset_idx": 2, "text": "AUTO_PWR", "column_header": false, "row_header": false, "row_section": false, "fillable": false},
+          {"bbox": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 3, "end_row_offset_idx": 4, "start_col_offset_idx": 2, "end_col_offset_idx": 3, "text": "Self-test runs when Auto-Power- On is disabled.", "column_header": false, "row_header": false, "row_section": false, "fillable": false}
+        ],
+        "num_rows": 4,
+        "num_cols": 3,
+        "grid": [
+          [{"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 0, "end_row_offset_idx": 1, "start_col_offset_idx": 0, "end_col_offset_idx": 1, "text": "Bit"}, {"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 0, "end_row_offset_idx": 1, "start_col_offset_idx": 1, "end_col_offset_idx": 2, "text": "Name"}, {"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 0, "end_row_offset_idx": 1, "start_col_offset_idx": 2, "end_col_offset_idx": 3, "text": "Meaning"}],
+          [{"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 1, "end_row_offset_idx": 2, "start_col_offset_idx": 0, "end_col_offset_idx": 1, "text": "0"}, {"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 1, "end_row_offset_idx": 2, "start_col_offset_idx": 1, "end_col_offset_idx": 2, "text": "WIDGET_RDY"}, {"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 1, "end_row_offset_idx": 2, "start_col_offset_idx": 2, "end_col_offset_idx": 3, "text": "Widget ready for use."}],
+          [{"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 2, "end_row_offset_idx": 3, "start_col_offset_idx": 0, "end_col_offset_idx": 1, "text": "1"}, {"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 2, "end_row_offset_idx": 3, "start_col_offset_idx": 1, "end_col_offset_idx": 2, "text": "WIDGET_ERR"}, {"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 2, "end_row_offset_idx": 3, "start_col_offset_idx": 2, "end_col_offset_idx": 3, "text": "WIDGET_ERR: Multi word error text\ncontinues on this wrapped cell"}],
+          [{"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 3, "end_row_offset_idx": 4, "start_col_offset_idx": 0, "end_col_offset_idx": 1, "text": "2"}, {"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 3, "end_row_offset_idx": 4, "start_col_offset_idx": 1, "end_col_offset_idx": 2, "text": "AUTO_PWR"}, {"bbox": null, "label": null, "row_span": 1, "col_span": 1, "start_row_offset_idx": 3, "end_row_offset_idx": 4, "start_col_offset_idx": 2, "end_col_offset_idx": 3, "text": "Self-test runs when Auto-Power- On is disabled."}]
+        ]
+      },
+      "annotations": [],
+      "confidence": 1.0
+    }
+  ],
+  "key_value_items": [],
+  "form_items": [],
+  "pages": {"1": {"size": [612.0, 792.0], "page_no": 1}, "2": {"size": [612.0, 792.0], "page_no": 2}, "3": {"size": [612.0, 792.0], "page_no": 3}, "4": {"size": [612.0, 792.0], "page_no": 4}, "5": {"size": [612.0, 792.0], "page_no": 5}, "6": {"size": [612.0, 792.0], "page_no": 6}, "7": {"size": [612.0, 792.0], "page_no": 7}}
+}
