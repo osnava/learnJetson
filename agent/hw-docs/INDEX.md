@@ -8,9 +8,11 @@
 > The corpus lives **on the PC the agent operates from** — nothing is
 > fetched to or stored on the Jetson itself. Originals cache in `pdf/`.
 > Figures: docling exports image placeholders only — never assert what
-> a figure shows; for humans, the cached PDF at the cited page is
-> authoritative. Cite answers as `doc §section (p. N)` — the page comes
-> from docling object provenance (`search.py` prints it).
+> a figure shows. Cite a figure by its caption object, `doc Figure N-M
+> (p. N)` with the caption text as the quote, and link humans to the
+> drawing at `pdf/<doc>.pdf#page=N`. Cite text answers as
+> `doc §section (p. N)` — the page comes from docling object provenance
+> (`search.py` prints it).
 
 ## Protocol (mirrored in AGENTS.md)
 
@@ -135,13 +137,15 @@ zip.
 every check is structural, resolved against the docling JSON source of
 truth (`md/<doc>.json`, per-object `prov.page_no`): the document resolves
 to a corpus stem (a name that is no corpus stem fails as `DOC_UNKNOWN` —
-it can never be fetched), the cited `§section`/`Ch.`/`Table`/`§name`
-heading object exists in the JSON, the cited page falls inside the
-section's span (the pages of the body items between that heading and the
-one that closes it — running headers/footers are furniture and never
-count, which is why §3.4 spans 28-28 and a p. 29 cite fails by
-construction), and the quoted line occurs in that page's
-provenance-ordered items. Quote comparison is one normalization
+it can never be fetched), the cited `§section`/`Ch.`/`Table`/
+`Figure`/`§name` heading or caption object exists in the JSON, the cited
+page falls inside the section's span (the pages of the body items between
+that heading and the one that closes it — running headers/footers are
+furniture and never count, which is why §3.4 spans 28-28 and a p. 29
+cite fails by construction; a `Figure N-M` cite resolves against the
+caption object plus the picture's pages, which is why Figure 3-1's
+caption on p. 25 fails a p. 26 cite), and the quoted line occurs in that
+page's provenance-ordered items. Quote comparison is one normalization
 (`normalize.py`, shared with the renderer and search) plus a
 whitespace-insensitive final form, so a cell wrapped mid-cell, a token
 the PDF wrapped (`GP70_UART1_T XD_BOOT2_STR AP`), a dehyphenated line

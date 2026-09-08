@@ -97,6 +97,13 @@ class ParseTest(unittest.TestCase):
         cits = grade.parse_answer("datasheet.md §Encode (p. 7) — \"1080p30 x\".")
         self.assertEqual([(t, k) for t, k in cits[0].secs], [("Encode", "name")])
 
+    def test_figure_token_is_extracted(self):
+        # figures are addressed by their caption object, never described
+        cits = grade.parse_answer(
+            'Layout drawing: devkit-carrier-spec.md Figure 3-1 (p. 25) — '
+            '"Figure 3-1. Expansion Header Connections".')
+        self.assertEqual([(t, k) for t, k in cits[0].secs], [("3-1", "figure")])
+
 
 class SyntheticCorpusTest(unittest.TestCase):
     """Structural acceptance criteria against fixtures/demo-doc.json —
@@ -177,6 +184,23 @@ class SyntheticCorpusTest(unittest.TestCase):
         r = one('demo-doc.md §1.2 Table 1-1 (p. 2) — "1|WIDGET_ERR|WIDGET_ERR: '
                 'Multi word error text continues on this wrapped cell"')
         self.assertEqual(r.verdict, "OK")
+
+    def test_figure_citation_ok(self):
+        # a figure is cited by caption number + page; the caption text is
+        # the load-bearing quote — the only citable part of a figure
+        r = one('demo-doc.md Figure 1-1 (p. 5) — "Figure 1-1. Widget header layout."')
+        self.assertEqual(r.verdict, "OK")
+        self.assertIn("spans page 5", r.notes[0])
+
+    def test_figure_page_off_by_one_is_caught(self):
+        # same bug class as §3.4 p.29: the caption object sits on p. 5 —
+        # a p. 6 cite fails by construction
+        r = one('demo-doc.md Figure 1-1 (p. 6) — "Figure 1-1. Widget header layout."')
+        self.assertEqual(r.verdict, "PAGE_OUTSIDE_SECTION")
+
+    def test_unknown_figure_fails(self):
+        r = one('demo-doc.md Figure 9-9 (p. 5) — "Figure 1-1. Widget header layout."')
+        self.assertEqual(r.verdict, "SECTION_NOT_FOUND")
 
     def test_named_section_resolves_against_heading_text(self):
         # unnumbered headings are citable as §name — search.py emits them
@@ -317,6 +341,22 @@ class RealCorpusTest(unittest.TestCase):
         r = one('datasheet.md §Encode (p. 7) — "1080p30 Supported via CPU '
                 'Cores with Software"', REAL)
         self.assertEqual(r.verdict, "OK", r.notes)
+
+    @needs("devkit-carrier-spec")
+    def test_figure_citation_probe(self):
+        # the "show me the pinout" case: the layout drawing is cited by
+        # caption — the caption object sits on p. 25, one page before the
+        # §3.3 table; a hand-written p. 26 cite is exactly the off-by-one
+        # this grader exists to catch
+        r = one('devkit-carrier-spec.md Figure 3-1 (p. 25) — "Figure 3-1. '
+                'Expansion Header Connections"', REAL)
+        self.assertEqual(r.verdict, "OK", r.notes)
+
+    @needs("devkit-carrier-spec")
+    def test_figure_page_before_the_table_is_the_trap(self):
+        r = one('devkit-carrier-spec.md Figure 3-1 (p. 26) — "Figure 3-1. '
+                'Expansion Header Connections"', REAL)
+        self.assertEqual(r.verdict, "PAGE_OUTSIDE_SECTION", r.notes)
 
     @needs("devkit-carrier-spec")
     def test_uart_session_answer_grades_clean(self):

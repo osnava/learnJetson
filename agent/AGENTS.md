@@ -26,7 +26,10 @@ something breaks.
 Anything about pins, voltage domains, connectors, power rails, video
 encode/decode engines, thermal limits, registers: route it through
 [`hw-docs/INDEX.md`](hw-docs/INDEX.md) and answer from the fetched
-markdown in `hw-docs/md/`, citing `doc §section (p. N)`. Retrieval
+markdown in `hw-docs/md/`, citing `doc §section (p. N)` (figures: cite
+the caption object, `doc Figure N-M (p. N)`, and link humans to the
+drawing at `hw-docs/pdf/<doc>.pdf#page=N` — never describe what a
+figure shows). Retrieval
 order (issue #28): **route → search → declare**, in that order —
 
 1. **Route** through INDEX.md; read/grep the routed section.

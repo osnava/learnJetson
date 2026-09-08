@@ -20,8 +20,9 @@ Per citation:
      agent's fault)
   3. the cited section's heading object exists    else SECTION_NOT_FOUND
      in the JSON — by number (§3.4, Ch. 2), by
-     caption (Table 3-4), or by name (§Encode —
-     search.py prints unnumbered headings too)
+     caption (Table 3-4, Figure 3-1), or by name
+     (§Encode — search.py prints unnumbered
+     headings too)
   4. cited page is in the section's span, i.e.    else PAGE_OUTSIDE_SECTION
      the page set of the body items between that
      heading and the heading that closes it
@@ -41,7 +42,12 @@ Structural rules (what replaces v1's span heuristics):
   is closed by any next heading. Chapters are depth 1.
 - The span of a `Table N-M` citation is the captioned table object's own
   prov pages (plus the caption's) — tables are objects, not headings;
-  nothing to close.
+  nothing to close. `Figure N-M` resolves the same way against the
+  caption object (plus the picture's pages — a drawing may sit on the
+  page before its caption): a figure is ADDRESSED — caption + page —
+  never described. The caption text is the citable quote; the drawing
+  itself is the human's to see in the cached PDF
+  (`pdf/<doc>.pdf#page=N`).
 
 Quote comparison — one normalization, defined on docling output and
 shared with the renderer and search (normalize.py, issue #28): both the
@@ -142,6 +148,9 @@ SEC_PATTERNS = [
     ("chapter", re.compile(r"\b[Cc]h(?:apter)?\.?\s*(?P<t>\d+)\b\.?")),
     # Table 3-4
     ("table", re.compile(r"\bTable\s+(?P<t>\d+\s*-\s*\d+)\b")),
+    # Figure 3-1 — a figure addressed by its caption object (figures are
+    # cited, never described; the caption is the citable part)
+    ("figure", re.compile(r"\bFigure\s+(?P<t>\d+\s*-\s*\d+)\b")),
     # §Encode — an unnumbered heading cited by name (search.py prints
     # them). Stops at the first character that cannot belong to a
     # heading name; the numbered pattern above owns digit-first tokens.
@@ -309,8 +318,8 @@ def token_lookups(token: str, kind: str) -> list[tuple[str, str]]:
     if kind == "name":
         return [("name", token.replace("–", "-").strip())]  # spaces are significant
     token = _label_key(token)
-    if kind == "table":
-        return [("table", token)]
+    if kind in ("table", "figure"):
+        return [(kind, token)]
     if "-" in token:  # §3.1-3.8
         a, b = token.split("-", 1)
         return [("num", a), ("num", b)]
@@ -324,6 +333,7 @@ def token_lookups(token: str, kind: str) -> list[tuple[str, str]]:
 _CHAPTER_HEAD_RE = re.compile(r"Chapter\s+(\d+)\b")
 _NUM_HEAD_RE = re.compile(r"(\d+(?:\.\d+)*)\s")
 _TABLE_CAP_RE = re.compile(r"Table\s+(\d+)\s*-\s*(\d+)\b")
+_FIGURE_CAP_RE = re.compile(r"Figure\s+(\d+)\s*-\s*(\d+)\b")
 
 
 @dataclass
@@ -338,10 +348,11 @@ class Heading:
 @dataclass
 class DocIndex:
     """One parsed md/<doc>.json: body items in document order plus the
-    heading and table-caption registries the grader resolves against."""
+    heading and caption registries the grader resolves against."""
     items: list[dict]                       # body-layer items, document order
     headings: list[Heading]                 # section_header items, document order
     tables: dict[str, tuple[set[int], str]]  # "3-4" -> (pages, caption text)
+    figures: dict[str, tuple[set[int], str]]  # "3-1" -> (pages, caption text)
 
 
 def _pages(item: dict) -> set[int]:
@@ -423,6 +434,7 @@ def load_doc(path: Path) -> DocIndex | None:
 
     headings: list[Heading] = []
     tables: dict[str, tuple[set[int], str]] = {}
+    figures: dict[str, tuple[set[int], str]] = {}
     for idx, it in enumerate(body):
         label = it.get("label")
         text = it.get("text") or ""
@@ -440,17 +452,23 @@ def load_doc(path: Path) -> DocIndex | None:
             name = normalize.canonical(text).rstrip(":").strip()
             headings.append(Heading("name", name, 99, idx, text))
         elif label == "caption":
+            # a caption's span is its own pages plus the parent object's —
+            # the figure drawing may sit on the page before its caption
+            pages = _pages(it)
+            parent = (it.get("parent") or {}).get("$ref", "")
+            if parent.startswith(("#/tables/", "#/pictures/")):
+                try:
+                    pages |= _pages(_deref(doc, parent))
+                except (ValueError, IndexError, KeyError):
+                    pass
             m = _TABLE_CAP_RE.match(text)
             if m:
-                pages = _pages(it)
-                parent = (it.get("parent") or {}).get("$ref", "")
-                if parent.startswith("#/tables/"):
-                    try:
-                        pages |= _pages(_deref(doc, parent))
-                    except (ValueError, IndexError, KeyError):
-                        pass
                 tables[f"{m.group(1)}-{m.group(2)}"] = (pages, text)
-    return DocIndex(body, headings, tables)
+                continue
+            m = _FIGURE_CAP_RE.match(text)
+            if m:
+                figures[f"{m.group(1)}-{m.group(2)}"] = (pages, text)
+    return DocIndex(body, headings, tables, figures)
 
 
 def _section_item_range(dox: DocIndex, hpos: int) -> tuple[int, int | None]:
@@ -524,6 +542,9 @@ def _resolve(dox: DocIndex, kind: str, label: str) -> Span | None:
     """One section token resolved against the JSON registries."""
     if kind == "table":
         entry = dox.tables.get(_label_key(label))
+        return Span(entry[0], entry[1]) if entry else None
+    if kind == "figure":
+        entry = dox.figures.get(_label_key(label))
         return Span(entry[0], entry[1]) if entry else None
     if kind == "name":
         want = normalize.canonical(label).rstrip(":").strip()
