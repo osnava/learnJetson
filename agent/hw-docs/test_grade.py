@@ -1,12 +1,12 @@
-"""Tests for the v2 structural citation grader (v2/grade.py, issue #29).
+"""Tests for the structural citation grader (grade.py, issue #29).
 
 Two tiers:
   - synthetic (fixtures/demo-doc.json, committed): a hand-written docling
     JSON exercising every structural rule — runs anywhere, no docling
-  - real (md/*.json, gitignored): the fetched v2 corpus; skips cleanly
+  - real (md/*.json, gitignored): the fetched docling corpus; skips cleanly
     when unfetched — a skip is never a pass
 
-Run: python agent/hw-docs/v2/test_grade.py
+Run: python agent/hw-docs/test_grade.py
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ import grade  # noqa: E402
 
 FIXTURES = HERE / "fixtures"
 SYNTH = FIXTURES                      # demo-doc.json + orin-trm.md live here
-REAL = HERE.parent / "md"
+REAL = HERE / "md"
 
 
 def needs(*stems: str):
@@ -32,13 +32,13 @@ def needs(*stems: str):
     deliberately absent."""
     return unittest.skipUnless(
         all((REAL / f"{s}.json").is_file() for s in stems),
-        "v2 JSON not fetched: " + ", ".join(
+        "corpus JSON not fetched: " + ", ".join(
             s for s in stems if not (REAL / f"{s}.json").is_file()))
 
 
 def run_cli(answer: str | None, corpus: Path, *extra: str,
             stdin: str = "") -> subprocess.CompletedProcess:
-    """Run v2/grade.py as a subprocess; answer=None means stdin."""
+    """Run grade.py as a subprocess; answer=None means stdin."""
     cmd = [sys.executable, str(HERE / "grade.py")]
     if answer is not None:
         cmd.append(answer)
@@ -281,12 +281,12 @@ class CliTest(unittest.TestCase):
 
 real_corpus = unittest.skipUnless(
     any(REAL.glob("*.json")),
-    "v2 corpus (docling JSON) not fetched — run agent/hw-docs/fetch.sh")
+    "docling corpus (JSON) not fetched — run agent/hw-docs/fetch.sh")
 
 
 @real_corpus
 class RealCorpusTest(unittest.TestCase):
-    """The fetched v2 corpus: the #29 known-good probes, the UART-session
+    """The fetched docling corpus: the #29 known-good probes, the UART-session
     answer (issue #20), and INDEX's memorized answers."""
 
     @needs("devkit-carrier-spec")
@@ -321,7 +321,7 @@ class RealCorpusTest(unittest.TestCase):
     @needs("devkit-carrier-spec")
     def test_uart_session_answer_grades_clean(self):
         results = grade.grade(grade.parse_answer(
-            (HERE.parent / "fixtures" / "uart-session-answer.md").read_text(
+            (HERE / "fixtures" / "uart-session-answer.md").read_text(
                 encoding="utf-8")), REAL)
         # two citations in the fixture: bare "…Table 3-4, p. 28:" and the
         # parenthesized "§3.4 (p. 28)" — both must grade, both must pass
@@ -330,7 +330,7 @@ class RealCorpusTest(unittest.TestCase):
     @needs("devkit-carrier-spec")
     def test_uart_session_answer_page_shifted_by_one_is_caught(self):
         # the historical bug, mechanically: the same answer citing p. 29
-        done = run_cli(str(HERE.parent / "fixtures" /
+        done = run_cli(str(HERE / "fixtures" /
                            "uart-session-answer.corrupt-page.md"), REAL)
         self.assertEqual(done.returncode, 1)
         self.assertIn("PAGE_OUTSIDE_SECTION", done.stdout)
@@ -340,9 +340,9 @@ class RealCorpusTest(unittest.TestCase):
         # the twins must never drift: the corrupt one is exactly the clean
         # answer with p. 28 shifted to p. 29, or the test above proves
         # nothing about page-shift detection
-        clean = (HERE.parent / "fixtures" / "uart-session-answer.md").read_text(
+        clean = (HERE / "fixtures" / "uart-session-answer.md").read_text(
             encoding="utf-8")
-        corrupt = (HERE.parent / "fixtures" /
+        corrupt = (HERE / "fixtures" /
                    "uart-session-answer.corrupt-page.md").read_text(encoding="utf-8")
         self.assertEqual(clean.replace("p. 28", "p. 29"), corrupt)
 

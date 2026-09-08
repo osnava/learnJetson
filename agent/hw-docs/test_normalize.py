@@ -1,4 +1,4 @@
-"""Synthetic tests for v2/normalize.py — run anywhere (pure stdlib).
+"""Synthetic tests for normalize.py — run anywhere (pure stdlib).
 
 Every case is pinned to a real artifact documented in the #27 spike
 (FINDINGS.md) or to a counter-example verified in the spike outputs.

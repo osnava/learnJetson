@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Structural citation grader over the v2 docling corpus (issue #29).
+"""Structural citation grader over the docling corpus (issue #29).
 
 Is `doc §section (p. N) + quote` real, or invented? The human-facing
 surface is unchanged from the v1 grader (#22); every corpus check is new
@@ -694,8 +694,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("answer", nargs="?", default="-",
                     help="file containing the agent answer (default: stdin)")
     ap.add_argument("--corpus", type=Path,
-                    default=Path(__file__).resolve().parent.parent / "md",
-                    help="corpus directory of md/<doc>.json sources (default: md/ beside v2/)")
+                    default=Path(__file__).resolve().parent / "md",
+                    help="corpus directory of md/<doc>.json sources (default: md/ beside this file)")
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     args = ap.parse_args(argv)
 

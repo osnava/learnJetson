@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v2 corpus builder (issue #28) — docling conversion wired end to end.
+"""docling corpus builder (issue #28) — docling conversion wired end to end.
 
 One invocation = one fetch.sh pass over a set of sources:
 
@@ -23,7 +23,7 @@ Substrate decisions (issue #28, from the #27 spike):
   era (explicitly out of the rebuild's hard wall; v1 files deleted in
   #30's sweep).
 
-Run under a docling-capable Python (fetch.sh resolves one; see v2/README).
+Run under a docling-capable Python (fetch.sh resolves one; see README.md).
 """
 from __future__ import annotations
 

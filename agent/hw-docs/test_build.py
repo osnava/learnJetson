@@ -1,4 +1,4 @@
-"""Synthetic tests for v2/build.py — the torch/docling-free parts.
+"""Synthetic tests for build.py — the torch/docling-free parts.
 
 The chunker itself (docling_core) and the embedder (torch) are exercised
 operator-side by the real fetch.sh run; here we pin the pure orchestration:
@@ -71,7 +71,7 @@ class ChunkerTier(unittest.TestCase):
     #27 spike JSON where present (operator machine); elsewhere SKIP is
     loud — a skip is never a pass."""
 
-    SPIKE = Path(__file__).parent.parent / "explore" / "devkit-carrier-spec.json"
+    SPIKE = Path(__file__).parent / "explore" / "devkit-carrier-spec.json"
 
     def test_button_table_chunk_carries_page_28(self):
         try:

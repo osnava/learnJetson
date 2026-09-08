@@ -1,7 +1,7 @@
-# hw-docs v2 — docling substrate, RAG layer (issue #28)
+# hw-docs — docling corpus substrate & tooling (issues #28–#30)
 
 Decision record for the corpus rebuild. The #27 spike (see
-[`../explore/FINDINGS.md`](../explore/FINDINGS.md)) chose **JSON as the
+[`explore/FINDINGS.md`](explore/FINDINGS.md)) chose **JSON as the
 source of truth, md as the rendering agents read**; this directory is
 that substrate, wired into `fetch.sh`. v1's pymupdf machinery is retired
 with intent recorded below — nothing was adapted in place, per the issue's
@@ -34,9 +34,9 @@ md/index/wrap_table.json corpus-confirmed wrapped-token joins
 
 ## Retrieval flow (mirrored in ../AGENTS.md)
 
-1. **Route** the question through [`../INDEX.md`](../INDEX.md) → read/grep
+1. **Route** the question through [`INDEX.md`](INDEX.md) → read/grep
    that section.
-2. Routing misses? **Search**: `python v2/search.py "question"` — hits
+2. Routing misses? **Search**: `python search.py "question"` — hits
    carry `doc §heading (p. N)` with the page resolved from docling object
    provenance. Exit 2 = no index (corpus not fetched — not the agent's
    fault).
@@ -91,16 +91,16 @@ show a partial breadcrumb; page provenance is always exact.
 
 | v1 | Superseded by | Status |
 |---|---|---|
-| `convert.py` PDF engine + `<!-- p.N -->` anchors | `v2/build.py`, JSON provenance | deleted |
+| `convert.py` PDF engine + `<!-- p.N -->` anchors | `build.py`, JSON provenance | deleted |
 | `convert.py` figure cull | `--image-export-mode placeholder` equivalent (spike: zero image links, JSON keeps picture provenance) | deleted |
 | `convert.py` pdftotext fallback | docling is the only path; absence is a hard error with install guidance | deleted |
-| `convert.py` xlsx→csv | carried over **verbatim** into `v2/build.py` (explicitly outside the hard wall) | lives on in `v2/build.py` |
-| `grade.py` span/anchor heuristics | `v2/grade.py` structural grader — heading objects + `prov.page_no`, quotes via the shared normalization; v1's answer-surface parser lives on inside it | deleted (#29 green) |
-| `check.py` / `check.sh` anchor/heading-floor lint | `v2/lint.py` provenance-based linter (JSON pages == PDF pages) | deleted (#30 green) |
+| `convert.py` xlsx→csv | carried over **verbatim** into `build.py` (explicitly outside the hard wall) | lives on in `build.py` |
+| `grade.py` span/anchor heuristics | `grade.py` structural grader — heading objects + `prov.page_no`, quotes via the shared normalization; v1's answer-surface parser lives on inside it | deleted (#29 green) |
+| `check.py` / `check.sh` anchor/heading-floor lint | `lint.py` provenance-based linter (JSON pages == PDF pages) | deleted (#30 green) |
 
 All six v1 files (plus their tests and `fixtures/md/`) were removed once
-the v2 replacements went green against the fetched corpus; the corpus
-itself had been produced by v2 only since #28.
+the replacements went green against the fetched corpus; the corpus
+itself had been produced by the docling pipeline only since #28.
 
 ## CI
 
@@ -111,8 +111,8 @@ conversion — the final #30 story, wired in
 - **CI (every push):** the synthetic test tiers — the committed fixtures
   (`fixtures/demo-doc.json` + each test's temp corpora) carry the
   contract for the grader and the linter — plus the one corpus-independent
-  linter section, the fetch.sh URL HEAD checks (`v2/lint.py --urls-only`).
+  linter section, the fetch.sh URL HEAD checks (`lint.py --urls-only`).
   Real-corpus tiers skip loudly; a skip is never a pass.
 - **Operator-side (after `fetch.sh`):** the full provenance lint —
-  `python v2/lint.py` — routing rows, pins, memorized answers, JSON page
+  `python lint.py` — routing rows, pins, memorized answers, JSON page
   sets vs the cached PDFs, shard tiling, v1-remnant purity.

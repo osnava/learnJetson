@@ -1,13 +1,13 @@
-"""Tests for the v2 provenance linter (v2/lint.py, issue #30).
+"""Tests for the provenance linter (lint.py, issue #30).
 
-Two tiers, like v2/test_grade.py: a synthetic tier (a temp corpus built
+Two tiers, like test_grade.py: a synthetic tier (a temp corpus built
 from the committed docling fixture plus a synthetic INDEX) that runs
 anywhere and carries the linter's contract in CI, and a real-corpus tier
-that lints the actual INDEX.md against the fetched v2 corpus — skips
+that lints the actual INDEX.md against the fetched docling corpus — skips
 cleanly when unfetched, a skip is never a pass. URL checks are exercised
-as pure functions here; CI runs them live via `v2/lint.py --urls-only`.
+as pure functions here; CI runs them live via `lint.py --urls-only`.
 
-Run: python agent/hw-docs/v2/test_lint.py
+Run: python agent/hw-docs/test_lint.py
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ sys.path.insert(0, str(HERE))
 import lint  # noqa: E402
 
 FIXTURES = HERE / "fixtures"
-REAL = HERE.parent / "md"
+REAL = HERE / "md"
 
 # Every routing shape INDEX.md uses: single §, range, §+Table, chapter,
 # §name, middot pair, --full tier, glob, directory, and the non-section
@@ -371,7 +371,7 @@ class UrlLogicTest(unittest.TestCase):
         self.assertEqual(lint.classify_url(200, "application/pdf", True)[0], "FAIL")
 
     def test_manifest_parse(self):
-        items = lint.parse_manifest(HERE.parent / "fetch.sh")
+        items = lint.parse_manifest(HERE / "fetch.sh")
         self.assertEqual(len(items), 8)  # 7 ITEMS rows + the reference-design zip
         gates = {n: g for n, _, g in items}
         self.assertTrue(gates["datasheet"])
@@ -391,18 +391,18 @@ class UrlLogicTest(unittest.TestCase):
 def needs(*stems: str):
     return unittest.skipUnless(
         all((REAL / f"{s}.json").is_file() for s in stems),
-        "v2 JSON not fetched: " + ", ".join(
+        "corpus JSON not fetched: " + ", ".join(
             s for s in stems if not (REAL / f"{s}.json").is_file()))
 
 
 real_corpus = unittest.skipUnless(
     any(REAL.glob("*.json")),
-    "v2 corpus (docling JSON) not fetched — run agent/hw-docs/fetch.sh")
+    "docling corpus (JSON) not fetched — run agent/hw-docs/fetch.sh")
 
 
 @real_corpus
 class RealCorpusTest(unittest.TestCase):
-    """The actual INDEX.md against the fetched v2 corpus (issue #30's
+    """The actual INDEX.md against the fetched docling corpus (issue #30's
     acceptance: the map re-verified row by row against docling provenance).
 
     The TRM grinds in slabs for hours — while it runs, its checks SKIP
@@ -447,7 +447,7 @@ class RealCorpusTest(unittest.TestCase):
                           "PDF pages", out)
 
     def test_page_shifted_memorized_citation_is_caught(self):
-        idx = (HERE.parent / "INDEX.md").read_text(encoding="utf-8")
+        idx = (HERE / "INDEX.md").read_text(encoding="utf-8")
         self.assertIn("§3.4 Table 3-4 (p. 28):", idx)
         with tempfile.TemporaryDirectory() as tmp:
             bad = Path(tmp) / "INDEX.md"

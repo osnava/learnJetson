@@ -7,16 +7,16 @@
 > budget ~160 MB on disk after `--full` — PDFs, markdown and figures together.
 > The corpus lives **on the PC the agent operates from** — nothing is
 > fetched to or stored on the Jetson itself. Originals cache in `pdf/`.
-> Figures: docling v2 exports image placeholders only — never assert what
+> Figures: docling exports image placeholders only — never assert what
 > a figure shows; for humans, the cached PDF at the cited page is
 > authoritative. Cite answers as `doc §section (p. N)` — the page comes
-> from docling object provenance (`v2/search.py` prints it).
+> from docling object provenance (`search.py` prints it).
 
 ## Protocol (mirrored in AGENTS.md)
 
 1. Route the question through the table below; read/grep that section.
 2. Answer with `doc §section (p. N)` and quote the load-bearing line.
-   That combination is machine-checkable: `python v2/grade.py <answer.md>`
+   That combination is machine-checkable: `python grade.py <answer.md>`
    (or pipe via stdin) verifies every citation resolves at the cited page
    — exit 0 clean, 1 = a citation fails verification (wrong section or
    page, quote not at the page, quote missing, or a document that is not
@@ -103,18 +103,18 @@ Two answers worth memorizing (both verified against the corpus):
 Refresh check: at every JetPack bump, compare versions against the
 [Jetson Download Center](https://developer.nvidia.com/embedded/downloads)
 (search the document title) and update this table + `fetch.sh` together.
-This whole file is then re-verified against the fetched corpus by the v2
-linter — `python v2/lint.py` (issue #30) checks every routing row's
+This whole file is then re-verified against the fetched corpus by the corpus
+linter — `python lint.py` (issue #30) checks every routing row's
 sections against the JSON heading registries, every pin against the
 version string the rendering carries, both memorized answers through the
 citation grader, and JSON page provenance against the source PDFs
 (core docs: page sets equal, exactly). Corpus checks run operator-side
 (docling is too heavy for CI); CI runs the fixture tier plus the URL
-HEAD checks (`v2/lint.py --urls-only`).
+HEAD checks (`lint.py --urls-only`).
 
-## Conversion (v2)
+## Conversion
 
-`fetch.sh` builds the corpus with **docling** through `v2/build.py`
+`fetch.sh` builds the corpus with **docling** through `build.py`
 (#27/#28): `md/<doc>.json` is the source of truth (per-object
 `prov.page_no`), `md/<doc>.md` the normalized rendering agents read and
 grep, `md/index/` the semantic-search shards. Figures export as
@@ -122,16 +122,16 @@ placeholders only — never assert what a figure shows; the cached PDF at
 the cited page is authoritative for humans. Tables come out as real md
 tables (one header row; the v1 split-header caveat is gone). Narrow-cell
 wrapping (`GP70_UART1_T XD_BOOT2_STR AP`) is reconstructed by
-`v2/normalize.py` — locally unambiguous joins always, ambiguous ones only
+`normalize.py` — locally unambiguous joins always, ambiguous ones only
 when the corpus confirms the joined form (the wrap table in
 `md/index/wrap_table.json`). The five core docs keep their JSON; the TRM
-converts md-only in resumable 250-page slabs (~7 h, see `v2/README.md`),
+converts md-only in resumable 250-page slabs (~7 h, see `README.md`),
 and the schematics ride the same docling path out of the reference-design
 zip.
 
 ## Citation grader (issues #22 → #29)
 
-`v2/grade.py` judges one thing per citation — *real or invented?* — and
+`grade.py` judges one thing per citation — *real or invented?* — and
 every check is structural, resolved against the docling JSON source of
 truth (`md/<doc>.json`, per-object `prov.page_no`): the document resolves
 to a corpus stem (a name that is no corpus stem fails as `DOC_UNKNOWN` —
@@ -142,14 +142,14 @@ one that closes it — running headers/footers are furniture and never
 count, which is why §3.4 spans 28-28 and a p. 29 cite fails by
 construction), and the quoted line occurs in that page's
 provenance-ordered items. Quote comparison is one normalization
-(`v2/normalize.py`, shared with the renderer and search) plus a
+(`normalize.py`, shared with the renderer and search) plus a
 whitespace-insensitive final form, so a cell wrapped mid-cell, a token
 the PDF wrapped (`GP70_UART1_T XD_BOOT2_STR AP`), a dehyphenated line
 (`Auto-Power- On` quoted as `Auto-Power-On`), and pipes from the md
 rendering (`VDD_3V3_SYS|40-pin header|3.3|0.1`) all match however the
 answer spells them. A fetched doc without a JSON (the TRM's slab mode)
 grades `NO_PROVENANCE` — soft, never a pass. Tests: `python
-v2/test_grade.py` — the synthetic tier (`v2/fixtures/demo-doc.json`, a
+test_grade.py` — the synthetic tier (`fixtures/demo-doc.json`, a
 committed docling doc) runs everywhere; the real-corpus tier (the #20
 UART-session answer, the memorized answers above, and the #29 probes)
 runs wherever the corpus is fetched and skips cleanly elsewhere.

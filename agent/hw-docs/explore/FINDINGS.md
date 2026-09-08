@@ -81,7 +81,7 @@ The JSON carries per-object provenance:
 
 This is the important structural difference: a citation can address an
 *object with provenance* (this table, that heading, page 28) instead of a
-regex over a text stream. The v2 grader resolves pages structurally; the
+regex over a text stream. The docling grader resolves pages structurally; the
 `<!-- p.N -->` anchors and the section-span heuristics both become
 unnecessary machinery rather than the contract.
 

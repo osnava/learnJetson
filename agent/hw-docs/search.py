@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Provenance-carrying semantic search over the v2 corpus (issue #28).
+"""Provenance-carrying semantic search over the docling corpus (issue #28).
 
 The retrieval step between INDEX routing and declaring a question
 not-sourceable. Answers carry heading breadcrumbs and PDF page numbers
 resolved from docling object provenance — never guessed.
 
-    python v2/search.py [--index-dir md/index] [--doc STEM] [--k 8] [--json] QUERY
+    python search.py [--index-dir md/index] [--doc STEM] [--k 8] [--json] QUERY
 
 Output (one block per hit):
 
@@ -106,9 +106,9 @@ def load_index(index_dir: Path):
 
 
 def main(argv=None, embed_fn=embed.embed_query) -> int:
-    ap = argparse.ArgumentParser(description="semantic search over the v2 corpus")
+    ap = argparse.ArgumentParser(description="semantic search over the docling corpus")
     ap.add_argument("query", help="natural-language question or identifier")
-    ap.add_argument("--index-dir", type=Path, default=Path(__file__).parent.parent / "md/index")
+    ap.add_argument("--index-dir", type=Path, default=Path(__file__).parent / "md/index")
     ap.add_argument("--doc", help="restrict to one corpus stem")
     ap.add_argument("--k", type=int, default=8)
     ap.add_argument("--json", action="store_true", help="machine-readable output")

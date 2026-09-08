@@ -1,4 +1,4 @@
-"""Synthetic tests for v2/search.py — run anywhere with numpy.
+"""Synthetic tests for search.py — run anywhere with numpy.
 
 Builds a tiny fake index (hand-made vectors, no torch), injects a fake
 embedder, and checks the provenance-carrying output contract.

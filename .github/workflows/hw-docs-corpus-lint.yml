@@ -2,14 +2,14 @@
 #
 # Final CI story (issue #30): docling (multi-GB models) is too heavy for a
 # per-push runner, so the corpus is never fetched here. The committed
-# fixtures carry the contract — v2/fixtures/demo-doc.json exercises the
+# fixtures carry the contract — fixtures/demo-doc.json exercises the
 # grader and the linter end to end, and every test file's real-corpus
 # tier skips loudly where the corpus is absent (a skip is never a pass).
 # What CI can check without the corpus, it does: the synthetic unit tiers
 # plus the corpus-independent linter section — the fetch.sh URL HEADs
-# (`v2/lint.py --urls-only`), the stale-URL tripwire #23 installed.
+# (`lint.py --urls-only`), the stale-URL tripwire #23 installed.
 # Corpus conversion and the full provenance lint run operator-side:
-# `agent/hw-docs/fetch.sh` then `python agent/hw-docs/v2/lint.py`.
+# `agent/hw-docs/fetch.sh` then `python agent/hw-docs/lint.py`.
 name: hw-docs unit tests
 
 on:
@@ -38,12 +38,12 @@ jobs:
 
       - name: unit tests (synthetic tier; corpus/docling tiers SKIP loudly)
         run: |
-          python agent/hw-docs/v2/test_normalize.py
-          python agent/hw-docs/v2/test_search.py
-          python agent/hw-docs/v2/test_build.py
-          python agent/hw-docs/v2/test_grade.py
-          python agent/hw-docs/v2/test_lint.py
+          python agent/hw-docs/test_normalize.py
+          python agent/hw-docs/test_search.py
+          python agent/hw-docs/test_build.py
+          python agent/hw-docs/test_grade.py
+          python agent/hw-docs/test_lint.py
           python agent/hw-docs/test_questions.py
 
       - name: corpus-independent lint (URL HEAD checks, no corpus needed)
-        run: python agent/hw-docs/v2/lint.py --urls-only
+        run: python agent/hw-docs/lint.py --urls-only

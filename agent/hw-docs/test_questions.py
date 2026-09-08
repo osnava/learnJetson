@@ -1,6 +1,6 @@
 """Tests for eval/questions.yaml — issue #24 acceptance criteria.
 
-Two tiers, like v2/test_grade.py:
+Two tiers, like test_grade.py:
 
   - structure tier: the golden set's own invariants — ~25 items, ~40%
     answerable:false, >=5 prior-divergent items with a note on which way
@@ -8,8 +8,8 @@ Two tiers, like v2/test_grade.py:
     late in #20 (fan drive type, serial-bus electrical, boot straps,
     DP/HDMI), and a well-formed schema. Runs anywhere (needs PyYAML).
     - real-corpus tier: every answerable item's expected_citation is
-    assembled into a gradeable answer and must pass the v2 structural
-    grader (v2/grade.py, issue #29) against the fetched docling corpus —
+    assembled into a gradeable answer and must pass the structural
+    grader (grade.py, issue #29) against the fetched docling corpus —
     a question whose own ground truth does not grade clean is a broken
     question. Citations into documents that are not fetched count as
     skips (CI fetches --core; the datasheet is login-gated) — a skip is
@@ -19,22 +19,15 @@ Run: python agent/hw-docs/test_questions.py
 """
 from __future__ import annotations
 
-import importlib.util
 import sys
 import unittest
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE / "v2"))  # v2/grade.py's sibling imports (normalize)
+sys.path.insert(0, str(HERE))  # grade.py's sibling imports (normalize)
 
-# The citation machinery (shared with the runner): v2's structural grader.
-# Loaded under its own module name ("v2_grade") rather than a bare import,
-# a habit from the v1 era when a sibling grade.py could shadow it (v1 file
-# deleted in #30's sweep; the explicit name keeps the load unambiguous).
-_spec = importlib.util.spec_from_file_location("v2_grade", HERE / "v2" / "grade.py")
-grade = importlib.util.module_from_spec(_spec)
-sys.modules["v2_grade"] = grade
-_spec.loader.exec_module(grade)
+# The citation machinery (shared with the runner): the structural grader.
+import grade  # noqa: E402
 
 import yaml  # noqa: E402  (pip install pyyaml — in the CI pip line)
 
@@ -145,7 +138,7 @@ class StructureTier(unittest.TestCase):
 
 real_corpus = unittest.skipUnless(
     any(REAL.glob("*.json")),
-    "v2 corpus (docling JSON) not fetched — run agent/hw-docs/fetch.sh")
+    "docling corpus (JSON) not fetched — run agent/hw-docs/fetch.sh")
 
 
 @real_corpus

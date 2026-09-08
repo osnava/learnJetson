@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fetch.sh — materialize the pinned hardware-doc corpus (v2, issue #28).
+# fetch.sh — materialize the pinned hardware-doc corpus (docling, issue #28).
 #
 # Fresh clone? This is step 4 of SETUP.md:
 #     agent/hw-docs/fetch.sh [--core|--full]
@@ -7,7 +7,7 @@
 #       --full            adds the 66 MB Orin SoC TRM + 32 MB carrier
 #                         reference-design files (schematics)
 #
-# Downloads are cached in pdf/. The v2 substrate (docling, #27/#28):
+# Downloads are cached in pdf/. The substrate (docling, #27/#28):
 # JSON is the source of truth (md/<doc>.json for the five core docs),
 # md/<doc>.md is the normalized rendering agents read, and md/index/
 # holds the semantic-search shards (chunks + embeddings + wrap table).
@@ -29,7 +29,7 @@ esac
 
 PY=python3; command -v python3 >/dev/null 2>&1 || PY=python
 
-# --- resolve a docling-capable Python (v2 conversion substrate) --------
+# --- resolve a docling-capable Python (docling conversion substrate) --------
 resolve_docling_py() {
   if [ -n "${DOCLING_PY:-}" ] && [ -x "${DOCLING_PY%% *}" ]; then
     echo "$DOCLING_PY"; return 0
@@ -55,7 +55,7 @@ resolve_docling_py() {
 
 if ! DOCLING_PY="$(resolve_docling_py)"; then
   cat >&2 <<'EOF'
- !! No docling-capable Python found. The v2 corpus needs docling:
+ !! No docling-capable Python found. The corpus needs docling:
       uv tool install docling     (recommended; pulls GPU torch)
       # or: pip install docling
     Models download on first conversion (cached user-globally).
@@ -142,7 +142,7 @@ done
 
 if [ "$stale" = 1 ]; then
   echo ">> converting (docling: json source of truth + md rendering + search index)"
-  if ! "$DOCLING_PY" v2/build.py --md-dir md --index-dir md/index \
+  if ! "$DOCLING_PY" build.py --md-dir md --index-dir md/index \
        --persist-json "${BUILD_ARGS[@]}"; then
     echo "   !! conversion reported failures - see output above"
   fi
@@ -170,7 +170,7 @@ if [ "$TIER" = full ]; then
       echo "   !! schematics PDF not found in the zip - layout changed?"
     elif is_stale "$sch" "$sch_out" "$sch_shard"; then
       echo ">> converting devkit-carrier-schematics -> md/ + index"
-      "$DOCLING_PY" v2/build.py --md-dir md --index-dir md/index \
+      "$DOCLING_PY" build.py --md-dir md --index-dir md/index \
         "$sch=devkit-carrier-schematics" \
         || { echo "   conversion failed: schematics"; }
     else
@@ -190,7 +190,7 @@ if [ "$TIER" = full ]; then
       || { echo "   download failed: orin-trm"; rm -f "$trm"; }
   fi
   # Complete = md written (build.py only assembles it from a full slab
-  # set) AND no leftover slab parts AND at least one v2 shard (a v1-era
+  # set) AND no leftover slab parts AND at least one index shard (a v1-era
   # md alone is not a completion certificate). Leftover parts mean an
   # interrupted grind - resume, don't call it cached.
   trm_parts=$(compgen -G "md/orin-trm.p*.raw.md" 2>/dev/null || true)
@@ -205,10 +205,10 @@ if [ "$TIER" = full ]; then
     log=md/index/orin-trm.build.log
     echo ">> orin-trm: background grind starting (~7.3 h, md-only, resumable)"
     if command -v nohup >/dev/null 2>&1; then
-      nohup "$DOCLING_PY" v2/build.py --md-dir md --index-dir md/index \
+      nohup "$DOCLING_PY" build.py --md-dir md --index-dir md/index \
         --slab-pages 250 "$trm" > "$log" 2>&1 &
     else
-      "$DOCLING_PY" v2/build.py --md-dir md --index-dir md/index \
+      "$DOCLING_PY" build.py --md-dir md --index-dir md/index \
         --slab-pages 250 "$trm" > "$log" 2>&1 &
     fi
     echo "   log: $log    (tail -f agent/hw-docs/$log; re-run fetch.sh to resume)"
@@ -219,5 +219,5 @@ fi
 
 echo
 echo "store: $(find md -maxdepth 1 -type f | wc -l) files in agent/hw-docs/md/ (gitignored)."
-echo "search: python v2/search.py \"question\"   (INDEX routes first, search when routing misses)"
+echo "search: python search.py \"question\"   (INDEX routes first, search when routing misses)"
 [ -f md/datasheet.md ] || echo "note: md/datasheet.md still missing - see the login step above."

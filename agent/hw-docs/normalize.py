@@ -1,8 +1,8 @@
-"""Normalization rules for the v2 docling corpus (issue #28).
+"""Normalization rules for the docling corpus (issue #28).
 
 THE one place that defines every text transform shared by the corpus
 consumers: the renderer (`build.py`, which writes `md/`), the semantic
-search entry (`search.py`), and the v2 citation grader (#29). Written
+search entry (`search.py`), and the structural citation grader (#29). Written
 against docling 2.126 output only — nothing here is inherited from the
 pymupdf4llm implementations (issue #28 hard wall).
 

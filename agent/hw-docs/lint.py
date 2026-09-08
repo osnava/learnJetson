@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provenance-based corpus linter over the v2 docling substrate (issue #30).
+"""Provenance-based corpus linter over the docling substrate (issue #30).
 
 Successor to the v1 pymupdf linter (check.py, #23, deleted in this sweep).
 The question is unchanged — does the hand-maintained map in INDEX.md still
@@ -10,11 +10,11 @@ every corpus check is written from scratch against docling output (the
   1. routing     every §/Ch./Table token in the routing table resolves
                  against the cited document's JSON heading/table registries
                  (grade.py's structural resolution — no md-text regexes)
-  2. memorized   the "worth memorizing" bullets grade OK through the v2
+  2. memorized   the "worth memorizing" bullets grade OK through the
                  grader: section object exists, page inside its span, quote
                  at that page
   3. versions    the version string each docling rendering carries vs the
-                 INDEX pin (pattern table below, derived from the v2 md)
+                 INDEX pin (pattern table below, derived from the docling md)
   4. provenance  JSON page provenance vs the source PDF: body-item page set
                  == PDF page count (core docs); md-only docs (TRM,
                  schematics) tile their slab shards 1..N with N == PDF
@@ -30,8 +30,8 @@ TRM grind in progress) — is SKIP, never PASS: a corpus that was never
 fetched must not paint the run green. Exit 0 when nothing failed (skips
 allowed), 1 on any FAIL.
 
-Run:  python v2/lint.py               (operator-side, after fetch.sh)
-      python v2/lint.py --urls-only   (the corpus-independent CI tier)
+Run:  python lint.py               (operator-side, after fetch.sh)
+      python lint.py --urls-only   (the corpus-independent CI tier)
 """
 from __future__ import annotations
 
@@ -42,10 +42,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-import grade  # noqa: E402  (v2 structural grader: resolution + parse/grade)
+import grade  # noqa: E402  (structural grader: resolution + parse/grade)
 
-HERE = Path(__file__).resolve().parent          # v2/
-ROOT = HERE.parent                              # hw-docs/
+HERE = Path(__file__).resolve().parent          # agent/hw-docs/
+ROOT = HERE
 
 # The one thing that can never come from docling: v1's page anchors. Any
 # file in md/ still carrying them is a leftover pymupdf rendering that
@@ -92,7 +92,7 @@ DOC_SPECS: dict[str, dict] = {
 }
 
 # Where the pinned version lives in each docling rendering. Written from
-# scratch against the v2 md (2026-09-08, grepping each rendering for its
+# scratch against the docling md (2026-09-08, grepping each rendering for its
 # document number): document-number footers survive docling conversion as
 # furniture text in the md rendering, so six patterns land on the same
 # strings the PDFs themselves carry — convergent with the v1 era, not
@@ -425,7 +425,7 @@ def lint_purity(corpus: Path, rep: Report) -> None:
         for name in stale:
             rep.record("FAIL", f"purity {name}",
                        "v1 pymupdf rendering (page anchors) still on disk — "
-                       "v2 checks must not verify against it; re-run fetch.sh")
+                       "the linter must not verify against it; re-run fetch.sh")
     else:
         rep.record("PASS", "purity", "no v1-era renderings in md/")
 
