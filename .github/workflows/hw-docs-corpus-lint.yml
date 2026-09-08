@@ -44,6 +44,8 @@ jobs:
           python agent/hw-docs/test_grade.py
           python agent/hw-docs/test_lint.py
           python agent/hw-docs/test_questions.py
+          python agent/hw-docs/eval/test_score.py
+          python agent/hw-docs/eval/test_arms.py
 
       - name: corpus-independent lint (URL HEAD checks, no corpus needed)
         run: python agent/hw-docs/lint.py --urls-only
