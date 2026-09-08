@@ -1,16 +1,5 @@
 # INDEX.md — hardware questions: route, then answer with a citation
 
-> **Substrate change in flight (issue #28, 2026-09-07):** `fetch.sh` now
-> builds the corpus with docling (v2): `md/<doc>.md` is the rendering,
-> `md/<doc>.json` is the source of truth with per-object page provenance,
-> and `md/index/` holds semantic-search shards. The v1 pymupdf caveats
-> below (split table headers, figure cull, `<!-- p.N -->` anchors) no
-> longer describe the fetched corpus — pages now come from JSON/chunk
-> provenance, and when INDEX routing misses, run
-> `python v2/search.py "question"` before declaring a question
-> not-sourceable. This routing table gets fully re-verified against the
-> v2 corpus in issue #30.
-
 > The agent's map of the hardware-document corpus for this machine
 > (P3766 dev kit = P3767 module + P3768 carrier, JetPack 6.2.2 / L4T R36.5.2).
 > `./fetch.sh` materializes the documents as markdown in `md/` (gitignored).
@@ -83,12 +72,13 @@ Two answers worth memorizing (both verified against the corpus):
   the NVDEC **decoder** (H.265, H.264, VP9, VP8, AV1, MPEG-4, MPEG-2,
   VC-1) and are the wrong place to argue from silence. Primary source
   behind FIELD_NOTES #9.
-- **Button-header voltage domains are mixed** — §3.4 Table 3-4 (p. 28):
-  debug UART pins 3/4 are 3.3 V, `SYS_RESET*` (pin 8) and
-  `FORCE_RECOVERY*` (pin 10) are 1.8 V, and the 5 V domain covers the
-  sleep/wake LED on pins 1/2 (`PC_LED-`/`PC_LED+`) plus `SLEEP/WAKE*` on
-  pin 12 — three different functions, not one "LED" pair. Pin 3 is the
-  board's **UART2_RXD** — mind adapter-vs-board TX/RX naming (see the
+- **Button-header voltage domains are mixed** — `devkit-carrier-spec.md`
+  §3.4 Table 3-4 (p. 28): debug UART pins 3/4 are 3.3 V, `SYS_RESET*`
+  (pin 8) and `FORCE_RECOVERY*` (pin 10) are 1.8 V, and the 5 V domain
+  covers the sleep/wake LED on pins 1/2 (`PC_LED-`/`PC_LED+`) plus
+  `SLEEP/WAKE*` on pin 12 — three different functions, not one 'LED'
+  pair. Pin 3 is the board's **UART2_RXD** — the table says
+  "UART2_RXD (DEBUG)"; mind adapter-vs-board TX/RX naming (see the
   serial-console row in `../inventory.md`).
 
 ## Online-only supplements (no local copy)
@@ -113,38 +103,31 @@ Two answers worth memorizing (both verified against the corpus):
 Refresh check: at every JetPack bump, compare versions against the
 [Jetson Download Center](https://developer.nvidia.com/embedded/downloads)
 (search the document title) and update this table + `fetch.sh` together.
-The v1 linter (`./check.sh`) is superseded by the v2 substrate: its
-anchor/heading checks are invalid against docling output, and CI no
-longer fetches the corpus (synthetic unit tiers only) — #30 rebuilds
-the linter against JSON provenance (page count == PDF pages) and
-rewires CI; until then, corpus verification is operator-side
-(`fetch.sh` idempotence + `v2/search.py` probes).
+This whole file is then re-verified against the fetched corpus by the v2
+linter — `python v2/lint.py` (issue #30) checks every routing row's
+sections against the JSON heading registries, every pin against the
+version string the rendering carries, both memorized answers through the
+citation grader, and JSON page provenance against the source PDFs
+(core docs: page sets equal, exactly). Corpus checks run operator-side
+(docling is too heavy for CI); CI runs the fixture tier plus the URL
+HEAD checks (`v2/lint.py --urls-only`).
 
-## Converter
+## Conversion (v2)
 
-`convert.py` uses **pymupdf4llm** (`pip install pymupdf4llm openpyxl`):
-real heading/table structure on born-digital PDFs, no ML models, no GPU.
-Marker/Docling/MinerU beat it only on scanned or complex layouts, at the
-cost of multi-GB model downloads; the NVIDIA corpus is born-digital.
-Figures are extracted with `write_images=True` into `md/images/<doc>/`
-with inline links; `_cull_figures` then removes sub-120 px fragments,
-near-blanks and exact duplicates (a 36 px decoration repeated across the
-TRM was 8,771 of its 8,980 raw images — without the cull, "extracted
-figures" is mostly noise).
-Duplicate figures are deleted from disk but keep their links, repointed
-at the one surviving copy — a diagram that legitimately recurs stays
-referenced in both sections. Under `--full`, `fetch.sh` also converts the
-carrier schematics out of the reference-design zip into
-`devkit-carrier-schematics.md`; everything in `md/` comes from the script.
-Fallback if pymupdf4llm is missing: poppler `pdftotext -layout` (text
-only, headings lost — the output says so). Very large PDFs (the TRM)
-convert in 200-page batches so memory stays bounded and progress is visible.
-
-**Reading converted tables:** pymupdf4llm splits multi-row table headers,
-so the first `|…|` row is often partial and the *real* column names sit in
-the row below it — carrier Table 3-4 renders as
-`|**Pin**||**Module**||**Type/Dir**|` before the row naming all five
-columns. Map columns off the second row, not the first.
+`fetch.sh` builds the corpus with **docling** through `v2/build.py`
+(#27/#28): `md/<doc>.json` is the source of truth (per-object
+`prov.page_no`), `md/<doc>.md` the normalized rendering agents read and
+grep, `md/index/` the semantic-search shards. Figures export as
+placeholders only — never assert what a figure shows; the cached PDF at
+the cited page is authoritative for humans. Tables come out as real md
+tables (one header row; the v1 split-header caveat is gone). Narrow-cell
+wrapping (`GP70_UART1_T XD_BOOT2_STR AP`) is reconstructed by
+`v2/normalize.py` — locally unambiguous joins always, ambiguous ones only
+when the corpus confirms the joined form (the wrap table in
+`md/index/wrap_table.json`). The five core docs keep their JSON; the TRM
+converts md-only in resumable 250-page slabs (~7 h, see `v2/README.md`),
+and the schematics ride the same docling path out of the reference-design
+zip.
 
 ## Citation grader (issues #22 → #29)
 
@@ -173,12 +156,12 @@ runs wherever the corpus is fetched and skips cleanly elsewhere.
 
 ## Golden question set (issue #24)
 
-`eval/questions.yaml` — 26 fixed questions with known answers, the anchor
+`eval/questions.yaml` — 27 fixed questions with known answers, the anchor
 for every later claim about this knowledge layer (#21 epic): half of them
 chosen because a model's prior *diverges* from the documents (no hardware
 video encoder; the 1 A-per-pin vs 0.1 A-header-budget trap; the
 four-UART-name chain; the fan's PWM/1.8 V/5 V layers; the 4K30-not-4K60
-display cap), ten marked `answerable: false` (~40%) where correct behaviour
+display cap), ten marked `answerable: false` (37%) where correct behaviour
 is an explicit "not sourceable locally" plus a redirect (`/dev/ttyTHS*`
 node names, nvpmodel tables, JetPack versions, machine facts) — never a
 plausible guess. Ground truth was established by reading the source:

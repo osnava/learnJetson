@@ -109,9 +109,9 @@ order (issue #28): **route → search → declare**, in that order —
 | `hw-docs/INDEX.md` | hardware-question routing table: question → doc §section (p. N) |
 | `hw-docs/fetch.sh` | materialize the hardware corpus with docling (v2): JSON source of truth + md rendering + search index, in gitignored `hw-docs/md/` |
 | `hw-docs/v2/search.py` | provenance-carrying semantic search over the corpus index — step 2 of route → search → declare |
-| `hw-docs/v2/grade.py` | citation grader (issue #29) — verify an answer's `doc §section (p. N)` + quote structurally against the docling JSON provenance (exit 1 = a citation fails verification; 2 = corpus not fetched, or doc fetched without a JSON to verify against — not the agent's fault). v1 `hw-docs/grade.py` is superseded; retires with #30's sweep |
-| `hw-docs/check.sh` | v1 corpus linter, entrypoint to `check.py` — superseded by the v2 docling substrate (#28); its corpus checks are invalid against `md/` until #30 rebuilds it. CI no longer runs it (synthetic unit tiers only). |
-| `hw-docs/eval/questions.yaml` | golden question set (issue #24): 26 fixed questions with ground truth, ~40% unanswerable-with-redirect; every answerable item's citation re-verified by `hw-docs/test_questions.py` (CI runs it) — feeds the cold-session runner |
+| `hw-docs/v2/grade.py` | citation grader (issue #29) — verify an answer's `doc §section (p. N)` + quote structurally against the docling JSON provenance (exit 1 = a citation fails verification; 2 = corpus not fetched, or doc fetched without a JSON to verify against — not the agent's fault) |
+| `hw-docs/v2/lint.py` | provenance-based corpus linter (issue #30) — re-verifies INDEX.md against the fetched corpus: routing rows vs the JSON heading registries, version pins, the memorized answers through the grader, JSON page sets == PDF pages, shard tiling, no v1 remnants. Operator-side after `fetch.sh` (`python hw-docs/v2/lint.py`); CI runs only its URL HEAD tier (`--urls-only`) — unfetched docs SKIP, never PASS |
+| `hw-docs/eval/questions.yaml` | golden question set (issue #24): 27 fixed questions with ground truth, ~37% unanswerable-with-redirect; every answerable item's citation re-verified by `hw-docs/test_questions.py` (CI runs it) — feeds the cold-session runner |
 | `launch_vllm.sh` | Cosmos-Reason2 vLLM launcher — stream to the Jetson, run by path ([runbook](../docs/cosmos-reason2-vllm.md)) |
 | `cosmos-env.example` | template for the Jetson's `~/.cosmos-env` (real file **gitignored**) |
 

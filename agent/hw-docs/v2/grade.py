@@ -348,6 +348,22 @@ def _pages(item: dict) -> set[int]:
     return {p.get("page_no") for p in (item.get("prov") or []) if p.get("page_no")}
 
 
+def item_pages(item: dict) -> set[int]:
+    """Public alias of the page-set extractor — the linter (#30) sums these
+    to compare JSON provenance coverage against a source PDF."""
+    return _pages(item)
+
+
+def resolve_token(dox: DocIndex, token: str, kind: str) -> Span | None:
+    """One section token (as written in an answer or INDEX row) resolved to
+    its span — the public seam the linter (#30) checks routing rows
+    through, so it never walks this module's private resolvers."""
+    lookups = token_lookups(token, kind)
+    if len(lookups) == 2:  # §3.1-3.8: one structural range
+        return _range_span(dox, lookups[0][1], lookups[1][1])
+    return _resolve(dox, *lookups[0])
+
+
 def _deref(doc: dict, ref: str):
     """#/texts/12 -> doc['texts'][12] (collections are already plural)."""
     _, kind, idx = ref.split("/")

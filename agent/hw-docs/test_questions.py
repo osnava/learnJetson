@@ -1,6 +1,6 @@
 """Tests for eval/questions.yaml — issue #24 acceptance criteria.
 
-Two tiers, like test_grade.py / test_check.py:
+Two tiers, like v2/test_grade.py:
 
   - structure tier: the golden set's own invariants — ~25 items, ~40%
     answerable:false, >=5 prior-divergent items with a note on which way
@@ -28,8 +28,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "v2"))  # v2/grade.py's sibling imports (normalize)
 
 # The citation machinery (shared with the runner): v2's structural grader.
-# Loaded under its own module name so hw-docs/grade.py (v1, retired with
-# #30's sweep) can never shadow it — or be shadowed by it.
+# Loaded under its own module name ("v2_grade") rather than a bare import,
+# a habit from the v1 era when a sibling grade.py could shadow it (v1 file
+# deleted in #30's sweep; the explicit name keeps the load unambiguous).
 _spec = importlib.util.spec_from_file_location("v2_grade", HERE / "v2" / "grade.py")
 grade = importlib.util.module_from_spec(_spec)
 sys.modules["v2_grade"] = grade

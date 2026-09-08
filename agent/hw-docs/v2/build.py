@@ -19,8 +19,9 @@ Substrate decisions (issue #28, from the #27 spike):
   absolute under `page_range`), never from text anchors.
 - Every text transform lives in normalize.py (shared with search.py and
   the #29 grader); this file only orchestrates.
-- The xlsx->csv pinmux path is inherited unchanged from v1 convert.py
-  (explicitly out of the rebuild's hard wall).
+- The xlsx->csv pinmux path is carried over unchanged from the v1 pymupdf
+  era (explicitly out of the rebuild's hard wall; v1 files deleted in
+  #30's sweep).
 
 Run under a docling-capable Python (fetch.sh resolves one; see v2/README).
 """
@@ -73,8 +74,9 @@ def _docling():
 
 
 # ---------------------------------------------------------------- xlsx path
-# Inherited verbatim from v1 convert.py — issue #28 keeps the pinmux
-# xlsx->csv path unchanged; it is deliberately not part of the rebuild.
+# Carried over verbatim from the v1 pymupdf era — issue #28 kept the
+# pinmux xlsx->csv path unchanged; it is deliberately not part of the
+# rebuild.
 
 def _safe(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_") or "sheet"
