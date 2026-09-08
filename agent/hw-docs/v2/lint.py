@@ -70,9 +70,10 @@ ROUTING_ROW_FLOOR = 20
 #                today is 51 KB)
 #   chunk_floor  total chunks across shards, md-only docs
 #
-# The TRM heading floor: 12,288 `#`-headings in the raw parts through
-# p.6250 (1.97/page) extrapolate to ~17k over the 8,783-page document;
-# 8,000 is its "structure survived" bar, set before the grind completed.
+# The TRM heading floor is measured from the completed grind (2026-09-08):
+# the finalized md carries 17,805 `#`-headings and 18,311 KB; the floor is
+# ~2/3 of the measured count (the pre-completion extrapolation guessed
+# ~17k — the measurement confirmed it).
 DOC_SPECS: dict[str, dict] = {
     "datasheet": {"pdf": "datasheet.pdf", "heading_floor": 75, "size_kb": 100},
     "devkit-carrier-spec": {"pdf": "devkit-carrier-spec.pdf",
@@ -84,7 +85,7 @@ DOC_SPECS: dict[str, dict] = {
     "orin-thermal-design-guide": {"pdf": "orin-thermal-design-guide.pdf",
                                   "heading_floor": 57, "size_kb": 70},
     "orin-trm": {"pdf": "orin-trm.pdf", "md_only": True,
-                 "heading_floor": 8000, "size_kb": 8192},
+                 "heading_floor": 11800, "size_kb": 9000},
     "devkit-carrier-schematics": {
         "pdf": "devkit-carrier-reference-design/P3768_A04_Concept_schematics.pdf",
         "md_only": True, "size_kb": 60, "chunk_floor": 120},
