@@ -1,13 +1,12 @@
 """Synthetic tests for eval/arms.py — the #26 baseline-control arm builder.
 
-The strip transforms are exercised against synthetic kit files that carry
-the exact anchor fragments of the real ones (reading-order arrow chain,
-the `## Hardware questions` section, tooling-table rows, the SETUP corpus
-block and checklist row, the README index link). The invariant under
-test: after the Without strip, the strings `hw-docs` / `INDEX.md` appear
-nowhere in the kit docs a cold session reads, while INDEX.md itself stays
-on disk (present but unreferenced — the issue #26 definition of the
-Without arm).
+Runs anywhere (no git, no network, no claude): the strip transforms are
+exercised against synthetic kit files that carry the exact anchor
+fragments of the real ones (reading-order arrow chain, the `## Hardware
+questions` section, tooling-table rows including physically wrapped ones,
+the SETUP corpus block and checklist row, the README index link). The
+real-corpus tier is run.sh --dry-run, which builds both arms from the
+actual repo and fails on any verify problem.
 """
 import tempfile
 import unittest

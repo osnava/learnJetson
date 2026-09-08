@@ -114,6 +114,10 @@ class RoutingSignalsTest(unittest.TestCase):
         self.assertFalse(s["routed"])
         self.assertFalse(s["searched"])
 
+    def test_unanchored_index_md_is_not_routed(self):
+        s = self.signals(("Read", {"file_path": "docs/index.md"}))
+        self.assertFalse(s["routed"])
+
     def test_searched_via_bash_or_powershell(self):
         for tool in ("Bash", "PowerShell"):
             self.assertTrue(self.signals(
@@ -225,7 +229,7 @@ class DeltaTest(unittest.TestCase):
         without_rows = [row("q1", routed=False, verdict="WRONG"),
                         row("q3", routed=False, verdict="CORRECT"),
                         row("q2", verdict="GUESSED")]
-        md = score.render_delta(with_rows, without_rows, QUESTIONS)
+        md = score.render_delta(with_rows, without_rows)
         self.assertIn("| metric | with | without | delta |", md)
         self.assertIn("module-interfaces", md)
         self.assertIn("+100.0", md)   # correct 0→1

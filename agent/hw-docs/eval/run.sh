@@ -74,7 +74,7 @@ say() { printf '\033[1m[run]\033[0m %s\n' "$*"; }
 
 # --- pre-flight ---------------------------------------------------------------
 
-if [[ "$ARMS" == *with,* || "$ARMS" == *",with" || "$ARMS" == "with" ]] && [[ $SKIP_LINT -eq 0 ]]; then
+if [[ ",$ARMS," == *",with,"* ]] && [[ $SKIP_LINT -eq 0 ]]; then
   say "pre-flight: corpus lint (the With arm is measured against this exact state)"
   (cd "$ROOT" && "$PYTHON" "$HW/lint.py" --offline) >/dev/null \
     || { echo "lint.py --offline failed — fix the corpus before measuring" >&2; exit 1; }
@@ -125,6 +125,7 @@ say "building arms from git export of $REV"
 
 # --- questions ----------------------------------------------------------------
 
+# ids and question texts loaded once, kept in lockstep by index
 mapfile -t QIDS < <("$PYTHON" - "$HERE/questions.yaml" "$IDS" <<'PY'
 import sys, yaml
 ids = [s for s in sys.argv[2].split(",") if s] if len(sys.argv) > 2 else []
@@ -135,42 +136,45 @@ for q in qs:
 PY
 )
 [[ ${#QIDS[@]} -gt 0 ]] || { echo "no questions selected" >&2; exit 1; }
-say "${#QIDS[@]} questions: ${QIDS[*]}"
-
-question_text() {
-  "$PYTHON" - "$HERE/questions.yaml" "$1" <<'PY'
+mapfile -t QTEXTS < <("$PYTHON" - "$HERE/questions.yaml" "${QIDS[*]}" <<'PY'
 import sys, yaml
+ids = sys.argv[2].split()
 qs = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))
-print(next(q["question"] for q in qs if q["id"] == sys.argv[2]))
+for qid in ids:
+    print(next(q["question"] for q in qs if q["id"] == qid))
 PY
-}
+)
+say "${#QIDS[@]} questions: ${QIDS[*]}"
 
 # --- one cold session ----------------------------------------------------------
 
-run_one() {  # arm id
-  local arm="$1" id="$2"
+# one predicate for "this transcript is a finished, non-error session" —
+# used both by the retry loop and the resume check, so they cannot disagree
+transcript_ok() {
+  grep -q '"type":"result"' "$1" && ! grep -q '"is_error":true' "$1"
+}
+
+run_one() {  # arm id question
+  local arm="$1" id="$2" question="$3"
   local dir="$SCRATCH/$arm/agent"
   local out="$SCRATCH/transcripts/$arm/$id.ndjson"
-  local t0 t1 attempt ok=0
+  local t0 t1 attempt
   mkdir -p "$SCRATCH/transcripts/$arm" "$SCRATCH/meta/$arm"
   for attempt in $(seq 1 $((RETRIES + 1))); do
     t0=$(date +%s)
-    if (cd "$dir" && timeout "$TIMEOUT_S" "$CLAUDE_BIN" -p "$(question_text "$id")" \
+    if (cd "$dir" && timeout "$TIMEOUT_S" "$CLAUDE_BIN" -p "$question" \
         --output-format stream-json --verbose \
         --permission-mode bypassPermissions --no-session-persistence \
         >"$out.tmp" 2>"$out.err"); then :; fi
     t1=$(date +%s)
-    # success = a result event that is not an error
-    if tail -c 200000 "$out.tmp" | grep -q '"type":"result"' \
-       && ! tail -c 200000 "$out.tmp" | grep -q '"is_error":true'; then
-      ok=1
+    if transcript_ok "$out.tmp"; then
       break
     fi
     say "  [$arm/$id] attempt $attempt failed, $((t1 - t0))s"
   done
   mv "$out.tmp" "$out"
-  printf '{"arm": "%s", "id": "%s", "duration_s": %d, "retries": %d, "ok": %d, "ts": "%s"}\n' \
-    "$arm" "$id" "$((t1 - t0))" "$((attempt - 1))" "$ok" "$(date -Iseconds)" \
+  printf '{"arm": "%s", "id": "%s", "duration_s": %d, "retries": %d, "ts": "%s"}\n' \
+    "$arm" "$id" "$((t1 - t0))" "$((attempt - 1))" "$(date -Iseconds)" \
     > "$SCRATCH/meta/$arm/$id.json"
 }
 
@@ -185,10 +189,10 @@ fi
 run_arm() {
   local arm="$1"
   say "=== arm: $arm — cold session per question ==="
-  local running=0
-  for id in "${QIDS[@]}"; do
-    if [[ -s "$SCRATCH/transcripts/$arm/$id.ndjson" ]] \
-       && grep -q '"is_error":false' "$SCRATCH/transcripts/$arm/$id.ndjson"; then
+  local i running=0
+  for i in "${!QIDS[@]}"; do
+    local id="${QIDS[$i]}" out="$SCRATCH/transcripts/$arm/$id.ndjson"
+    if [[ -s "$out" ]] && transcript_ok "$out"; then
       say "  [$arm/$id] already done — skipping (delete to rerun)"
       continue
     fi
@@ -196,7 +200,7 @@ run_arm() {
       wait -n || true
       running=$((running - 1))
     done
-    run_one "$arm" "$id" & running=$((running + 1))
+    run_one "$arm" "$id" "${QTEXTS[$i]}" & running=$((running + 1))
   done
   wait || true
 }

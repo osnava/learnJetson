@@ -29,7 +29,10 @@ SCORE_DIR layout (written by run.sh):
     meta/<arm>/<id>.json              {duration_s, retries, arm, id}
 
 Output: answers/<arm>/<id>.md, judge/<arm>/<id>.json, <arm>.items.json,
-scoreboard-<arm>.md, delta.md (when both arms present), summary.json.
+scoreboard-<arm>.md, delta.md (when both arms present), summary.json,
+transcripts/<arm>/ (committed copy: structure kept, tool-result bodies
+truncated) and raw/<arm>/ (verbatim transcripts — operator-side like the
+corpus, gitignored).
 """
 from __future__ import annotations
 
@@ -37,6 +40,7 @@ import argparse
 import datetime as _dt
 import json
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -46,7 +50,8 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent))  # grade.py lives flat in hw-docs/
 import grade  # noqa: E402
 
-INDEX_RE = re.compile(r"index\.md", re.IGNORECASE)
+# matched against a json.dumps blob, where a backslash appears doubled
+INDEX_RE = re.compile(r"hw-docs[/\\]+INDEX\.md", re.IGNORECASE)
 SEARCH_RE = re.compile(r"search\.py", re.IGNORECASE)
 KEY_RE = re.compile(r"eval[/\\]questions\.ya?ml", re.IGNORECASE)
 
@@ -268,7 +273,10 @@ _DELTA_ROWS = [  # (metric key, header, applies to)
     ("abstained", "abstained correctly %", "unanswerable"),
     ("guessed", "guessed %", "unanswerable"),
     ("forum_only", "forum-only (count)", "all"),
+    ("unscored", "unscored (count)", "all"),
+    ("contaminated", "contaminated (count)", "all"),
     ("errors", "session errors", "all"),
+    ("cost_usd", "cost $", "all"),
 ]
 
 
@@ -283,8 +291,7 @@ def _delta(a, b) -> str:
     return "±0.0" if abs(d) < 0.05 else f"{d:+.1f}"
 
 
-def render_delta(with_rows: list[dict], without_rows: list[dict],
-                 questions: list[dict]) -> str:
+def render_delta(with_rows: list[dict], without_rows: list[dict]) -> str:
     """The #26 deliverable: per-metric, per-slice with-vs-without delta."""
     sb_with = scoreboard(with_rows)
     sb_without = scoreboard(without_rows)
@@ -306,11 +313,19 @@ def render_delta(with_rows: list[dict], without_rows: list[dict],
             if key not in w:
                 continue
             raw = w[key]
-            is_count = key in ("forum_only", "errors")
-            f = (lambda v: "—" if v is None else str(v)) if is_count else _fmt
-            d = ("—" if raw is None or wo is None or key not in wo else
-                 f"{raw - wo[key]:+g}" if is_count else _delta(raw, wo.get(key)))
-            lines.append(f"| {header} | {f(raw)} | {f(wo.get(key)) if wo else '—'} | {d} |")
+            if key == "cost_usd":
+                fmt = lambda v: "—" if v is None else f"{v:.2f}"
+                d = ("—" if raw is None or wo is None or key not in wo
+                     else f"{raw - wo[key]:+.2f}")
+            elif key in ("forum_only", "errors", "unscored", "contaminated"):
+                fmt = lambda v: "—" if v is None else str(v)
+                d = ("—" if raw is None or wo is None or key not in wo
+                     else f"{raw - wo[key]:+g}")
+            else:
+                fmt = _fmt
+                d = _delta(raw, wo.get(key))
+            lines.append(f"| {header} | {fmt(raw)} | "
+                         f"{fmt(wo.get(key)) if wo else '—'} | {d} |")
         lines.append("")
     return "\n".join(lines)
 
@@ -419,12 +434,16 @@ def score_arm(arm: str, questions: list[dict], score_dir: Path, out_dir: Path,
               f"routed={row['routed']} cited={row['cited']} "
               f"grade_exit={row['grade_exit']}")
     slim = out_dir / "transcripts" / arm
+    raw = out_dir / "raw" / arm
     slim.mkdir(parents=True, exist_ok=True)
+    raw.mkdir(parents=True, exist_ok=True)
     for q in questions:
         tf = tdir / f"{q['id']}.ndjson"
         if tf.is_file():
+            shutil.copyfile(tf, raw / f"{q['id']}.ndjson")  # full, post-hoc
             (slim / f"{q['id']}.ndjson").write_text(
-                filter_transcript(tf.read_text(encoding="utf-8")), encoding="utf-8")
+                filter_transcript(tf.read_text(encoding="utf-8")),
+                encoding="utf-8")
     (out_dir / f"{arm}.items.json").write_text(
         json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
     (out_dir / f"scoreboard-{arm}.md").write_text(
@@ -472,10 +491,9 @@ def main(argv=None) -> int:
             "errors": sum(1 for r in rows if not r["ok"]),
             "contaminated": sum(1 for r in rows if r["contaminated"]),
         }
-    if len(arm_rows) == 2:
-        with_arm, without_arm = arm_rows  # sorted: "with" < "without"
+    if "with" in arm_rows and "without" in arm_rows:
         (args.out / "delta.md").write_text(
-            render_delta(arm_rows[with_arm], arm_rows[without_arm], questions),
+            render_delta(arm_rows["with"], arm_rows["without"]),
             encoding="utf-8")
     (args.out / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
