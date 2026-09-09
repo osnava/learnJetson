@@ -71,18 +71,26 @@ change the specifics.
 
 Fetch the hardware-doc corpus so hardware questions get grounded answers
 instead of guesses (datasheet, carrier-board spec, pinmux, thermal/design
-guides — converted to greppable markdown, gitignored). Do this **on the PC
-you operate the agent from** — the Jetson stores and serves none of it:
+guides — converted by docling to md + a provenance-carrying search index,
+gitignored). Do this **on the PC you operate the agent from** — the
+Jetson stores and serves none of it:
 
 ```bash
-pip install pymupdf4llm openpyxl    # converter (falls back to poppler pdftotext)
-agent/hw-docs/fetch.sh              # ~9 MB; --full adds the 66 MB SoC TRM + schematics
+uv tool install docling             # corpus converter (fetch.sh locates it; GPU optional but ~10x faster)
+agent/hw-docs/fetch.sh              # ~9 MB, ≈6.5 min with GPU; --full adds TRM + schematics
 ```
 
-The data sheet itself sits behind NVIDIA's (free) login — `fetch.sh`
-prints the one-time manual step when it detects it. The routing table
-from question to doc-section lives in
-[`agent/hw-docs/INDEX.md`](hw-docs/INDEX.md).
+`fetch.sh` resolves the docling-capable Python automatically (or set
+`DOCLING_PY`); models download once on first conversion. With `--full`,
+the 8,800-page TRM converts as a **~7 h background grind** — resumable,
+log at `agent/hw-docs/md/index/orin-trm.build.log` (details in
+[`agent/hw-docs/README.md`](hw-docs/README.md)). The data sheet
+itself sits behind NVIDIA's (free) login — `fetch.sh` prints the one-time
+manual step when it detects it. The routing table from question to
+doc-section lives in
+[`agent/hw-docs/INDEX.md`](hw-docs/INDEX.md); when routing misses,
+`python agent/hw-docs/search.py "question"` searches the corpus
+semantically with page provenance.
 
 **Verify:**
 

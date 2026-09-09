@@ -189,3 +189,16 @@ acceptance criteria → measure before/after → commit with the evidence in the
 body → close with an outcome comment (including honest "premise disproven"
 closes — #8's NVDEC and the TRT INT8 gap both saved future sessions by being
 closed *with data* rather than left open in hope).
+
+**21. Vendor agent skills are operator-side knowledge, same as the corpus.**
+The Ultralytics agent skills (issue #33) live on the PC — user scope, not the
+repo, not the Jetson: Claude Code via `claude plugin install yolo@ultralytics`
+(the `ultralytics` marketplace), ZCode as the same seven skill folders
+(`yolo` router + models/datasets/training/tuning/inference/export) copied
+into `~/.zcode/skills/` from
+[ultralytics/skills](https://github.com/ultralytics/skills) — re-copy (or
+`claude plugin update`) to refresh. They keep YOLO API, CLI and export
+knowledge current for the vision stack (the #7/#8/#10 class of work); the
+Jetson's containers stay the authority on the installed package version. The
+eval harness's isolated `CLAUDE_CONFIG_DIR` deliberately keeps plugins —
+these included — out of measured cold sessions.

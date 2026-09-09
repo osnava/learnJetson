@@ -16,6 +16,12 @@ agent/inventory.md
 agent/hw-docs/pdf/
 agent/hw-docs/md/
 agent/hw-docs/__pycache__/
+agent/hw-docs/eval/__pycache__/
+
+# Cold-session eval: verbatim transcripts stay operator-side (like the
+# corpus); the committed copy under results/ keeps structure with
+# tool-result bodies truncated
+agent/hw-docs/eval/results/**/raw/
 
 # Cosmos serving env — the real file lives on the Jetson (~/.cosmos-env), never in the repo
 agent/cosmos-env
@@ -30,3 +36,10 @@ JETSON_RECOVERY_HANDOFF.md
 /.mcp.json
 /.ignore
 /AGENTS.md
+agent/hw-docs/explore/*
+!agent/hw-docs/explore/FINDINGS.md
+
+# Local agent-tool state (ZCode + its plugins) — never part of the repo
+/.zcode/
+/.v2c/
+/tmpwebapp-*.log

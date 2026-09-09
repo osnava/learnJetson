@@ -1,6 +1,6 @@
 """Tests for eval/questions.yaml — issue #24 acceptance criteria.
 
-Two tiers, like test_grade.py / test_check.py:
+Two tiers, like test_grade.py:
 
   - structure tier: the golden set's own invariants — ~25 items, ~40%
     answerable:false, >=5 prior-divergent items with a note on which way
@@ -8,11 +8,12 @@ Two tiers, like test_grade.py / test_check.py:
     late in #20 (fan drive type, serial-bus electrical, boot straps,
     DP/HDMI), and a well-formed schema. Runs anywhere (needs PyYAML).
     - real-corpus tier: every answerable item's expected_citation is
-    assembled into a gradeable answer and must pass grade.py against the
-    fetched corpus — a question whose own ground truth does not grade
-    clean is a broken question. Citations into documents that are not
-    fetched count as skips (CI fetches --core; the datasheet is
-    login-gated) — a skip is never a pass, and no citation may ever FAIL.
+    assembled into a gradeable answer and must pass the structural
+    grader (grade.py, issue #29) against the fetched docling corpus —
+    a question whose own ground truth does not grade clean is a broken
+    question. Citations into documents that are not fetched count as
+    skips (CI fetches --core; the datasheet is login-gated) — a skip is
+    never a pass, and no citation may ever FAIL.
 
 Run: python agent/hw-docs/test_questions.py
 """
@@ -23,8 +24,10 @@ import unittest
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
-import grade  # noqa: E402  (citation machinery shared with the runner)
+sys.path.insert(0, str(HERE))  # grade.py's sibling imports (normalize)
+
+# The citation machinery (shared with the runner): the structural grader.
+import grade  # noqa: E402
 
 import yaml  # noqa: E402  (pip install pyyaml — in the CI pip line)
 
@@ -133,8 +136,9 @@ class StructureTier(unittest.TestCase):
         self.assertGreaterEqual(len(answerable_cats), MIN_ROUTING_CATEGORIES)
 
 
-real_corpus = unittest.skipUnless(any(REAL.glob("*.md")),
-                                  "corpus not fetched (run agent/hw-docs/fetch.sh)")
+real_corpus = unittest.skipUnless(
+    any(REAL.glob("*.json")),
+    "docling corpus (JSON) not fetched — run agent/hw-docs/fetch.sh")
 
 
 @real_corpus
@@ -154,7 +158,7 @@ class RealCorpusTier(unittest.TestCase):
                              f"{item['id']}: a citation did not parse into a "
                              "gradeable claim — check doc/section/page syntax")
             for r in results:
-                if r.verdict in ("DOC_MISSING", "NO_ANCHORS"):
+                if r.verdict in ("DOC_MISSING", "NO_PROVENANCE"):
                     skipped += 1  # corpus gap, not a broken question (CI: --core)
                 else:
                     graded += 1

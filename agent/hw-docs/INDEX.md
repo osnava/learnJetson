@@ -7,15 +7,12 @@
 > budget ~160 MB on disk after `--full` — PDFs, markdown and figures together.
 > The corpus lives **on the PC the agent operates from** — nothing is
 > fetched to or stored on the Jetson itself. Originals cache in `pdf/`.
-> Figures are extracted to `md/images/<doc>/` and linked inline where they
-> appear (a cull pass drops repeated decorations and sub-120 px fragments,
-> and collapses duplicate copies to one — that was 97% of the TRM's raw
-> haul; repeat *links* survive, repointed). Identify a figure by
-> the extracted picture-text next to its link; **never assert what a
-> figure shows unless your harness truly renders images** — for humans,
-> the cached PDF at the cited page is authoritative. Every converted page
-> starts with a `<!-- p.N -->` anchor — cite answers as `doc §section
-> (p. N)`.
+> Figures: docling exports image placeholders only — never assert what
+> a figure shows. Cite a figure by its caption object, `doc Figure N-M
+> (p. N)` with the caption text as the quote, and link humans to the
+> drawing at `pdf/<doc>.pdf#page=N`. Cite text answers as
+> `doc §section (p. N)` — the page comes from docling object provenance
+> (`search.py` prints it).
 
 ## Protocol (mirrored in AGENTS.md)
 
@@ -26,7 +23,8 @@
    — exit 0 clean, 1 = a citation fails verification (wrong section or
    page, quote not at the page, quote missing, or a document that is not
    in the corpus; the p. 29-vs-p. 28 bug class from #20), 2 = corpus or
-   document not fetched, which is not the agent's fault.
+   document not fetched — or fetched without a docling JSON to verify
+   against — which is not the agent's fault.
 3. Document missing? Run `./fetch.sh` before guessing. Datasheet absent?
    It is NVIDIA-login-gated — one-time manual download (fetch.sh prints how).
 4. Authority order: **Data Sheet / Carrier Board Spec / TRM** →
@@ -76,12 +74,13 @@ Two answers worth memorizing (both verified against the corpus):
   the NVDEC **decoder** (H.265, H.264, VP9, VP8, AV1, MPEG-4, MPEG-2,
   VC-1) and are the wrong place to argue from silence. Primary source
   behind FIELD_NOTES #9.
-- **Button-header voltage domains are mixed** — §3.4 Table 3-4 (p. 28):
-  debug UART pins 3/4 are 3.3 V, `SYS_RESET*` (pin 8) and
-  `FORCE_RECOVERY*` (pin 10) are 1.8 V, and the 5 V domain covers the
-  sleep/wake LED on pins 1/2 (`PC_LED-`/`PC_LED+`) plus `SLEEP/WAKE*` on
-  pin 12 — three different functions, not one "LED" pair. Pin 3 is the
-  board's **UART2_RXD** — mind adapter-vs-board TX/RX naming (see the
+- **Button-header voltage domains are mixed** — `devkit-carrier-spec.md`
+  §3.4 Table 3-4 (p. 28): debug UART pins 3/4 are 3.3 V, `SYS_RESET*`
+  (pin 8) and `FORCE_RECOVERY*` (pin 10) are 1.8 V, and the 5 V domain
+  covers the sleep/wake LED on pins 1/2 (`PC_LED-`/`PC_LED+`) plus
+  `SLEEP/WAKE*` on pin 12 — three different functions, not one 'LED'
+  pair. Pin 3 is the board's **UART2_RXD** — the table says
+  "UART2_RXD (DEBUG)"; mind adapter-vs-board TX/RX naming (see the
   serial-console row in `../inventory.md`).
 
 ## Online-only supplements (no local copy)
@@ -106,63 +105,67 @@ Two answers worth memorizing (both verified against the corpus):
 Refresh check: at every JetPack bump, compare versions against the
 [Jetson Download Center](https://developer.nvidia.com/embedded/downloads)
 (search the document title) and update this table + `fetch.sh` together.
-Or just run `./check.sh` — it verifies the on-disk documents against
-these pins, every routing row against the corpus, the memorized answers'
-pages, conversion smoke (anchors == PDF pages, heading floors), and the
-manifest URLs (HTML on a direct link = stale). CI does the same on every
-push with `--core` (see `.github/workflows/`); absent documents report
-SKIP, never PASS.
+This whole file is then re-verified against the fetched corpus by the corpus
+linter — `python lint.py` (issue #30) checks every routing row's
+sections against the JSON heading registries, every pin against the
+version string the rendering carries, both memorized answers through the
+citation grader, and JSON page provenance against the source PDFs
+(core docs: page sets equal, exactly). Corpus checks run operator-side
+(docling is too heavy for CI); CI runs the fixture tier plus the URL
+HEAD checks (`lint.py --urls-only`).
 
-## Converter
+## Conversion
 
-`convert.py` uses **pymupdf4llm** (`pip install pymupdf4llm openpyxl`):
-real heading/table structure on born-digital PDFs, no ML models, no GPU.
-Marker/Docling/MinerU beat it only on scanned or complex layouts, at the
-cost of multi-GB model downloads; the NVIDIA corpus is born-digital.
-Figures are extracted with `write_images=True` into `md/images/<doc>/`
-with inline links; `_cull_figures` then removes sub-120 px fragments,
-near-blanks and exact duplicates (a 36 px decoration repeated across the
-TRM was 8,771 of its 8,980 raw images — without the cull, "extracted
-figures" is mostly noise).
-Duplicate figures are deleted from disk but keep their links, repointed
-at the one surviving copy — a diagram that legitimately recurs stays
-referenced in both sections. Under `--full`, `fetch.sh` also converts the
-carrier schematics out of the reference-design zip into
-`devkit-carrier-schematics.md`; everything in `md/` comes from the script.
-Fallback if pymupdf4llm is missing: poppler `pdftotext -layout` (text
-only, headings lost — the output says so). Very large PDFs (the TRM)
-convert in 200-page batches so memory stays bounded and progress is visible.
+`fetch.sh` builds the corpus with **docling** through `build.py`
+(#27/#28): `md/<doc>.json` is the source of truth (per-object
+`prov.page_no`), `md/<doc>.md` the normalized rendering agents read and
+grep, `md/index/` the semantic-search shards. Figures export as
+placeholders only — never assert what a figure shows; the cached PDF at
+the cited page is authoritative for humans. Tables come out as real md
+tables (one header row; the v1 split-header caveat is gone). Narrow-cell
+wrapping (`GP70_UART1_T XD_BOOT2_STR AP`) is reconstructed by
+`normalize.py` — locally unambiguous joins always, ambiguous ones only
+when the corpus confirms the joined form (the wrap table in
+`md/index/wrap_table.json`). The five core docs keep their JSON; the TRM
+converts md-only in resumable 250-page slabs (~7 h, see `README.md`),
+and the schematics ride the same docling path out of the reference-design
+zip.
 
-**Reading converted tables:** pymupdf4llm splits multi-row table headers,
-so the first `|…|` row is often partial and the *real* column names sit in
-the row below it — carrier Table 3-4 renders as
-`|**Pin**||**Module**||**Type/Dir**|` before the row naming all five
-columns. Map columns off the second row, not the first.
+## Citation grader (issues #22 → #29)
 
-## Citation grader (issue #22)
-
-`grade.py` judges one thing per citation — *real or invented?* — in four
-steps: document resolves to `md/<doc>.md` (a name that is no corpus stem
-fails as `DOC_UNKNOWN` — it can never be fetched), every cited
-`§section`/`Ch.`/`Table` heading exists, the page falls inside the
-section's span (a page counts only when it carries section content past
-the running header — that's why §3.4 spans 28-28 and a p. 29 cite fails),
-and the quoted line occurs on the cited page. Quotes are compared after
-NFKC + whitespace/`<br>`/emphasis normalization, so a cell pymupdf4llm
-wrapped mid-token (`GP70_UART1_T<br>XD_BOOT2_STR<br>AP`) matches however
-the answer spells it. Tests: `python test_grade.py` — the synthetic tier
-(`fixtures/`) runs everywhere; the real-corpus tier (the #20 UART-session
-answer and the memorized answers above) runs wherever the corpus is
-fetched and skips cleanly elsewhere.
+`grade.py` judges one thing per citation — *real or invented?* — and
+every check is structural, resolved against the docling JSON source of
+truth (`md/<doc>.json`, per-object `prov.page_no`): the document resolves
+to a corpus stem (a name that is no corpus stem fails as `DOC_UNKNOWN` —
+it can never be fetched), the cited `§section`/`Ch.`/`Table`/
+`Figure`/`§name` heading or caption object exists in the JSON, the cited
+page falls inside the section's span (the pages of the body items between
+that heading and the one that closes it — running headers/footers are
+furniture and never count, which is why §3.4 spans 28-28 and a p. 29
+cite fails by construction; a `Figure N-M` cite resolves against the
+caption object plus the picture's pages, which is why Figure 3-1's
+caption on p. 25 fails a p. 26 cite), and the quoted line occurs in that
+page's provenance-ordered items. Quote comparison is one normalization
+(`normalize.py`, shared with the renderer and search) plus a
+whitespace-insensitive final form, so a cell wrapped mid-cell, a token
+the PDF wrapped (`GP70_UART1_T XD_BOOT2_STR AP`), a dehyphenated line
+(`Auto-Power- On` quoted as `Auto-Power-On`), and pipes from the md
+rendering (`VDD_3V3_SYS|40-pin header|3.3|0.1`) all match however the
+answer spells them. A fetched doc without a JSON (the TRM's slab mode)
+grades `NO_PROVENANCE` — soft, never a pass. Tests: `python
+test_grade.py` — the synthetic tier (`fixtures/demo-doc.json`, a
+committed docling doc) runs everywhere; the real-corpus tier (the #20
+UART-session answer, the memorized answers above, and the #29 probes)
+runs wherever the corpus is fetched and skips cleanly elsewhere.
 
 ## Golden question set (issue #24)
 
-`eval/questions.yaml` — 26 fixed questions with known answers, the anchor
+`eval/questions.yaml` — 27 fixed questions with known answers, the anchor
 for every later claim about this knowledge layer (#21 epic): half of them
 chosen because a model's prior *diverges* from the documents (no hardware
 video encoder; the 1 A-per-pin vs 0.1 A-header-budget trap; the
 four-UART-name chain; the fan's PWM/1.8 V/5 V layers; the 4K30-not-4K60
-display cap), ten marked `answerable: false` (~40%) where correct behaviour
+display cap), ten marked `answerable: false` (37%) where correct behaviour
 is an explicit "not sourceable locally" plus a redirect (`/dev/ttyTHS*`
 node names, nvpmodel tables, JetPack versions, machine facts) — never a
 plausible guess. Ground truth was established by reading the source:

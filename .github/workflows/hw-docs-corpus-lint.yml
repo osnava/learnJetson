@@ -1,9 +1,16 @@
-# Corpus lint (issue #23) — the deterministic half of the #21 epic.
-# Fetches the core corpus (~9 MB) and runs the static linter against it.
-# The data sheet is NVIDIA-login-gated: it is *expected* to be missing
-# here, and check.sh reports it as SKIPPED — a skip is never a pass, so
-# the build cannot go green because the corpus is incomplete.
-name: hw-docs corpus lint
+# hw-docs tests + corpus-independent lint (the #21 epic's deterministic half).
+#
+# Final CI story (issue #30): docling (multi-GB models) is too heavy for a
+# per-push runner, so the corpus is never fetched here. The committed
+# fixtures carry the contract — fixtures/demo-doc.json exercises the
+# grader and the linter end to end, and every test file's real-corpus
+# tier skips loudly where the corpus is absent (a skip is never a pass).
+# What CI can check without the corpus, it does: the synthetic unit tiers
+# plus the corpus-independent linter section — the fetch.sh URL HEADs
+# (`lint.py --urls-only`), the stale-URL tripwire #23 installed.
+# Corpus conversion and the full provenance lint run operator-side:
+# `agent/hw-docs/fetch.sh` then `python agent/hw-docs/lint.py`.
+name: hw-docs unit tests
 
 on:
   push:
@@ -26,17 +33,19 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: install converter dependencies
-        run: pip install pymupdf pymupdf4llm openpyxl pyyaml
+      - name: install test dependencies
+        run: pip install openpyxl numpy pyyaml
 
-      - name: fetch the core corpus (datasheet stays login-gated)
-        run: bash agent/hw-docs/fetch.sh --core
-
-      - name: unit tests (synthetic tier everywhere; real tier where fetched)
+      - name: unit tests (synthetic tier; corpus/docling tiers SKIP loudly)
         run: |
+          python agent/hw-docs/test_normalize.py
+          python agent/hw-docs/test_search.py
+          python agent/hw-docs/test_build.py
           python agent/hw-docs/test_grade.py
-          python agent/hw-docs/test_check.py
+          python agent/hw-docs/test_lint.py
           python agent/hw-docs/test_questions.py
+          python agent/hw-docs/eval/test_score.py
+          python agent/hw-docs/eval/test_arms.py
 
-      - name: lint the corpus
-        run: bash agent/hw-docs/check.sh
+      - name: corpus-independent lint (URL HEAD checks, no corpus needed)
+        run: python agent/hw-docs/lint.py --urls-only

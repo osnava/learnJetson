@@ -26,13 +26,26 @@ something breaks.
 Anything about pins, voltage domains, connectors, power rails, video
 encode/decode engines, thermal limits, registers: route it through
 [`hw-docs/INDEX.md`](hw-docs/INDEX.md) and answer from the fetched
-markdown in `hw-docs/md/`, citing `doc §section (p. N)`.
+markdown in `hw-docs/md/`, citing `doc §section (p. N)` (figures: cite
+the caption object, `doc Figure N-M (p. N)`, and link humans to the
+drawing at `hw-docs/pdf/<doc>.pdf#page=N` — never describe what a
+figure shows). Retrieval
+order (issue #28): **route → search → declare**, in that order —
+
+1. **Route** through INDEX.md; read/grep the routed section.
+2. Routing misses? **Search** the provenance-carrying index:
+   `python hw-docs/search.py "question"` — hits carry
+   `doc §heading (p. N)` with pages resolved from docling object
+   provenance (exit 2 = index not built; run `fetch.sh`, not your fault).
+3. Still nothing? **Declare the question not sourceable locally** and
+   redirect (online Jetson docs / the human) — never a plausible guess.
 
 - Corpus not fetched yet? Run `hw-docs/fetch.sh` (~9 MB core; `--full`
-  adds the SoC TRM + carrier schematics). The data sheet itself is
-  NVIDIA-login-gated — one-time manual download, the script prints how.
-  The corpus lives on **this PC** — operator-side knowledge; nothing is
-  fetched to or stored on the Jetson.
+  adds the SoC TRM + carrier schematics; the TRM conversion is a ~7 h
+  background grind, resumable — see `hw-docs/README.md`). The data
+  sheet itself is NVIDIA-login-gated — one-time manual download, the
+  script prints how. The corpus lives on **this PC** — operator-side
+  knowledge; nothing is fetched to or stored on the Jetson.
 - Authority order: **Data Sheet / Carrier Board Spec / TRM** → Jetson
   Linux Developer Guide (online) → NVIDIA forums/blogs (leads only,
   never the sole source).
@@ -97,12 +110,24 @@ markdown in `hw-docs/md/`, citing `doc §section (p. N)`.
 | `inventory.md` | real IPs/MACs/UUIDs (**gitignored — never commit**) |
 | `inventory.example.md` | template for the above |
 | `hw-docs/INDEX.md` | hardware-question routing table: question → doc §section (p. N) |
-| `hw-docs/fetch.sh` | materialize the hardware corpus as markdown in gitignored `hw-docs/md/` |
-| `hw-docs/grade.py` | citation grader — verify an answer's `doc §section (p. N)` + quote really resolves in the corpus (exit 1 = a citation fails verification; 2 = corpus or document not fetched — not the agent's fault) |
-| `hw-docs/check.sh` | corpus linter, entrypoint to `check.py` (CI runs it on every push) — INDEX routing rows, version pins, memorized answers, conversion smoke, URL HEAD checks; absent docs report SKIP, never PASS |
-| `hw-docs/eval/questions.yaml` | golden question set (issue #24): 26 fixed questions with ground truth, ~40% unanswerable-with-redirect; every answerable item's citation re-verified by `hw-docs/test_questions.py` (CI runs it) — feeds the cold-session runner |
+| `hw-docs/fetch.sh` | materialize the hardware corpus with docling: JSON source of truth + md rendering + search index, in gitignored `hw-docs/md/` |
+| `hw-docs/search.py` | provenance-carrying semantic search over the corpus index — step 2 of route → search → declare |
+| `hw-docs/grade.py` | citation grader (issue #29) — verify an answer's `doc §section (p. N)` + quote structurally against the docling JSON provenance (exit 1 = a citation fails verification; 2 = corpus not fetched, or doc fetched without a JSON to verify against — not the agent's fault) |
+| `hw-docs/lint.py` | provenance-based corpus linter (issue #30) — re-verifies INDEX.md against the fetched corpus: routing rows vs the JSON heading registries, version pins, the memorized answers through the grader, JSON page sets == PDF pages, shard tiling, no v1 remnants. Operator-side after `fetch.sh` (`python hw-docs/lint.py`); CI runs only its URL HEAD tier (`--urls-only`) — unfetched docs SKIP, never PASS |
+| `hw-docs/eval/questions.yaml` | golden question set (issue #24): 27 fixed questions with ground truth, ~37% unanswerable-with-redirect; every answerable item's citation re-verified by `hw-docs/test_questions.py` (CI runs it) — feeds the cold-session runner |
+| `hw-docs/eval/run.sh` | cold-session runner (issue #25) + baseline control (issue #26): one fresh `claude -p` session per golden question, per arm — the repo as it stands vs the layer unwired (arms built by `eval/arms.py`, answer-key hygiene included); `eval/score.py` records routed/searched/cited/valid/correct/abstained per item and renders the with-vs-without delta; transcripts + delta land in `eval/results/` (operator-side, costs real tokens — never CI) |
 | `launch_vllm.sh` | Cosmos-Reason2 vLLM launcher — stream to the Jetson, run by path ([runbook](../docs/cosmos-reason2-vllm.md)) |
 | `cosmos-env.example` | template for the Jetson's `~/.cosmos-env` (real file **gitignored**) |
+
+## Domain agent skills — prefer them over memory
+
+Some domains have vendor skills installed on this PC (currently
+Ultralytics/YOLO for the vision stack — what and how to update:
+FIELD_NOTES #21). When a task falls in such a domain — even phrased
+without the vendor's keywords ("improve detection FPS") — route through
+the installed skills instead of working from memory. The package
+installed in the target container, not the skill, is authoritative for
+version-specific flags and formats.
 
 ## Repo hygiene on Windows (line endings + exec bits)
 

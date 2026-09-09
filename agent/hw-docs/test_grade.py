@@ -1,13 +1,12 @@
-"""Tests for grade.py — issue #22 acceptance criteria.
+"""Tests for the structural citation grader (grade.py, issue #29).
 
 Two tiers:
-  - synthetic corpus (fixtures/md/, committed): deterministic, runs anywhere
-  - real corpus (md/, gitignored): the UART-session fixture and INDEX's
-    memorized answers against the actual fetched documents; skipped when
-    the corpus has not been fetched — on such a machine the grader itself
-    must say DOC_MISSING, which the synthetic tier covers.
+  - synthetic (fixtures/demo-doc.json, committed): a hand-written docling
+    JSON exercising every structural rule — runs anywhere, no docling
+  - real (md/*.json, gitignored): the fetched docling corpus; skips cleanly
+    when unfetched — a skip is never a pass
 
-Run: python agent/hw-docs/test_grade.py   (or: python -m unittest discover agent/hw-docs)
+Run: python agent/hw-docs/test_grade.py
 """
 from __future__ import annotations
 
@@ -23,19 +22,18 @@ sys.path.insert(0, str(HERE))
 import grade  # noqa: E402
 
 FIXTURES = HERE / "fixtures"
-SYNTH = FIXTURES / "md"
+SYNTH = FIXTURES                      # demo-doc.json + orin-trm.md live here
 REAL = HERE / "md"
-
-real_corpus = unittest.skipUnless(
-    any(REAL.glob("*.md")), "corpus not fetched (run agent/hw-docs/fetch.sh)")
 
 
 def needs(*stems: str):
-    """Skip unless these specific docs are fetched — CI runs --core, where
-    the login-gated datasheet and the --full giants are deliberately absent."""
+    """Skip unless these docs' JSON sources of truth are fetched — CI runs
+    --core, where the login-gated datasheet and the --full giants are
+    deliberately absent."""
     return unittest.skipUnless(
-        all((REAL / f"{s}.md").is_file() for s in stems),
-        "not fetched: " + ", ".join(s for s in stems if not (REAL / f"{s}.md").is_file()))
+        all((REAL / f"{s}.json").is_file() for s in stems),
+        "corpus JSON not fetched: " + ", ".join(
+            s for s in stems if not (REAL / f"{s}.json").is_file()))
 
 
 def run_cli(answer: str | None, corpus: Path, *extra: str,
@@ -57,6 +55,9 @@ def one(text: str, corpus: Path = SYNTH) -> grade.Result:
 
 
 class ParseTest(unittest.TestCase):
+    """The human-facing surface `doc §section (p. N) + quote` — unchanged
+    from the v1 grader (issue #29 keeps the surface, rebuilds the checks)."""
+
     def test_doc_section_table_page_and_quote_are_extracted(self):
         cits = grade.parse_answer(
             'Per `devkit-carrier-spec.md` §3.4 Table 3-4, p. 28: pin 3 is '
@@ -79,17 +80,34 @@ class ParseTest(unittest.TestCase):
         self.assertEqual([c.stem for c in cits], ["demo-doc", "demo-doc"])
 
     def test_quote_inside_the_citation_is_not_the_load_bearing_quote(self):
-        # INDEX's memorized answer shape: the quoted *section label* between
-        # doc and (p. N) must not steal the pairing from the real quote.
         cits = grade.parse_answer(
             'No encoder — `datasheet.md` Ch. 1 Overview, "HD Video → Encode" '
             '(p. 7), states: "1080p30 Supported via CPU Cores with Software."')
         self.assertEqual(len(cits), 1)
         self.assertEqual(cits[0].quote, "1080p30 Supported via CPU Cores with Software.")
 
+    def test_section_name_after_the_number_is_not_a_second_token(self):
+        # search.py prints §3.4 Button Header — the words after the number
+        # belong to the numbered token, not a name token of their own
+        cits = grade.parse_answer("doc.md §3.4 Button Header (p. 28) — \"x y\".")
+        self.assertEqual([t for t, _ in cits[0].secs], ["3.4"])
+
+    def test_named_section_token_is_extracted(self):
+        # search.py also emits §<heading name> for unnumbered headings
+        cits = grade.parse_answer("datasheet.md §Encode (p. 7) — \"1080p30 x\".")
+        self.assertEqual([(t, k) for t, k in cits[0].secs], [("Encode", "name")])
+
+    def test_figure_token_is_extracted(self):
+        # figures are addressed by their caption object, never described
+        cits = grade.parse_answer(
+            'Layout drawing: devkit-carrier-spec.md Figure 3-1 (p. 25) — '
+            '"Figure 3-1. Expansion Header Connections".')
+        self.assertEqual([(t, k) for t, k in cits[0].secs], [("3-1", "figure")])
+
 
 class SyntheticCorpusTest(unittest.TestCase):
-    """Deterministic acceptance criteria against fixtures/md/demo-doc.md."""
+    """Structural acceptance criteria against fixtures/demo-doc.json —
+    the docling JSON shapes every rule is written against."""
 
     def test_ok_citation(self):
         r = one('demo-doc.md §1.1 (p. 1) — "The widget supply rail is 3.3 V nominal."')
@@ -97,8 +115,9 @@ class SyntheticCorpusTest(unittest.TestCase):
         self.assertIn("spans page 1", r.notes[0])
 
     def test_page_shifted_by_one_is_caught(self):
-        # the p. 29 vs p. 28 bug from #20: same section, same quote, page off by one.
-        # §1.1 spans page 1 only — page 2 carries nothing but the running header.
+        # the p. 29 vs p. 28 bug from #20: same section, same quote, page off
+        # by one. §1.1's body items all carry prov page 1 — 2 is not in the
+        # span by construction, no content threshold needed.
         r = one('demo-doc.md §1.1 (p. 2) — "The widget supply rail is 3.3 V nominal."')
         self.assertEqual(r.verdict, "PAGE_OUTSIDE_SECTION")
         self.assertIn("quote does not occur", " ".join(r.notes))
@@ -109,37 +128,95 @@ class SyntheticCorpusTest(unittest.TestCase):
         self.assertEqual(r.verdict, "QUOTE_NOT_AT_PAGE")
 
     def test_chapter_spans_its_short_heading_pages(self):
-        # p.3 carries only a heading + one line (< MIN_SPAN_CHARS) — still
-        # part of the chapter, or chapter citations would false-fail
+        # p.3 carries a heading + one line — body content, so part of the
+        # chapter; only furniture (running header/footer) is span-excluded
         r = one('demo-doc.md Ch. 1 (p. 3) — "Absolute maximum is 125 degrees C."')
         self.assertEqual(r.verdict, "OK")
 
-    def test_quote_from_table_cell_wrapped_with_br(self):
-        # the cell is `WIDGET_ERR: Multi word error text<br>continues on this
-        # wrapped cell` — the answer quotes it with a plain space instead
-        r = one('demo-doc.md §1.2 Table 1-1 (p. 2) — "WIDGET_ERR: Multi word '
-                'error text continues on this wrapped cell"')
+    def test_unnumbered_heading_does_not_close_numbered_section(self):
+        # 'Notes:' sits between §1.2's table and a trailing text item — an
+        # unnumbered heading must never end a numbered section's span
+        r = one('demo-doc.md §1.2 (p. 2) — "Bits are read-only after self-test."')
         self.assertEqual(r.verdict, "OK")
+
+    def test_interior_furniture_only_page_is_not_in_the_span(self):
+        # p.4 sits inside §1.3's heading-to-close extent but carries only
+        # running header/footer (content_layer furniture) — a page set, not
+        # a min/max range: §1.3 spans {3, 5}
+        r = one('demo-doc.md §1.3 (p. 4) — "Absolute maximum is 125 degrees C."')
+        self.assertEqual(r.verdict, "PAGE_OUTSIDE_SECTION")
+        self.assertIn("pages 3, 5", " ".join(r.notes))
 
     def test_section_not_found(self):
         r = one('demo-doc.md §9.9 (p. 1) — "The widget supply rail is 3.3 V nominal."')
         self.assertEqual(r.verdict, "SECTION_NOT_FOUND")
 
     def test_page_outside_range_span(self):
-        r = one('demo-doc.md §1.1–1.3 (p. 6) — "Absolute maximum is 125 degrees C."')
+        # the range §1.1–1.3 runs to the end of §1.3's section — which,
+        # per the unnumbered-heading rule, extends through the name
+        # headings up to Chapter 2 (pages {1,2,3,5,6}); p. 7 is outside it
+        r = one('demo-doc.md §1.1–1.3 (p. 7) — "Absolute maximum is 125 degrees C."')
         self.assertEqual(r.verdict, "PAGE_OUTSIDE_SECTION")
-
-    def test_interior_empty_page_is_not_in_the_span(self):
-        # p.4 sits inside §1.3's heading-to-EOF extent but carries only the
-        # running header — it must not inherit §1.3's span (a page set, not
-        # a min/max range: §1.3 spans {3, 5})
-        r = one('demo-doc.md §1.3 (p. 4) — "Absolute maximum is 125 degrees C."')
-        self.assertEqual(r.verdict, "PAGE_OUTSIDE_SECTION")
-        self.assertIn("pages 3, 5", " ".join(r.notes))
 
     def test_no_quote(self):
         r = one("demo-doc.md §1.1 (p. 1) says the rail is 3.3 V nominal.")
         self.assertEqual(r.verdict, "NO_QUOTE")
+
+    def test_quote_from_table_cell_wrapped_mid_cell(self):
+        # the cell text wraps mid-cell ('...error text\ncontinues on this
+        # wrapped cell') — quoted with a plain space
+        r = one('demo-doc.md §1.2 Table 1-1 (p. 2) — "WIDGET_ERR: Multi word '
+                'error text continues on this wrapped cell"')
+        self.assertEqual(r.verdict, "OK")
+
+    def test_dehyphenated_quote_resolves(self):
+        # the cell reads 'Auto-Power- On' (hyphen + space, the PDF's line
+        # wrap) — quoted as 'Auto-Power-On'. The hyphen stays literal on
+        # both sides; only the wrapped space differs.
+        r = one('demo-doc.md §1.2 Table 1-1 (p. 2) — "Self-test runs when '
+                'Auto-Power-On is disabled."')
+        self.assertEqual(r.verdict, "OK")
+
+    def test_quote_spelled_with_md_pipes_matches(self):
+        # a quote copied from the md rendering spells cell boundaries as
+        # pipes ('|1|WIDGET_ERR|...|') — the same row, same cells as the
+        # space-joined substrate, so it must match
+        r = one('demo-doc.md §1.2 Table 1-1 (p. 2) — "1|WIDGET_ERR|WIDGET_ERR: '
+                'Multi word error text continues on this wrapped cell"')
+        self.assertEqual(r.verdict, "OK")
+
+    def test_figure_citation_ok(self):
+        # a figure is cited by caption number + page; the caption text is
+        # the load-bearing quote — the only citable part of a figure
+        r = one('demo-doc.md Figure 1-1 (p. 5) — "Figure 1-1. Widget header layout."')
+        self.assertEqual(r.verdict, "OK")
+        self.assertIn("spans page 5", r.notes[0])
+
+    def test_figure_page_off_by_one_is_caught(self):
+        # same bug class as §3.4 p.29: the caption object sits on p. 5 —
+        # a p. 6 cite fails by construction
+        r = one('demo-doc.md Figure 1-1 (p. 6) — "Figure 1-1. Widget header layout."')
+        self.assertEqual(r.verdict, "PAGE_OUTSIDE_SECTION")
+
+    def test_unknown_figure_fails(self):
+        r = one('demo-doc.md Figure 9-9 (p. 5) — "Figure 1-1. Widget header layout."')
+        self.assertEqual(r.verdict, "SECTION_NOT_FOUND")
+
+    def test_named_section_resolves_against_heading_text(self):
+        # unnumbered headings are citable as §name — search.py emits them
+        r = one('demo-doc.md §Encode (p. 6) — "1080p30 Supported via CPU '
+                'Cores with Software"')
+        self.assertEqual(r.verdict, "OK")
+
+    def test_named_section_matches_numbered_heading_by_suffix(self):
+        # §Widget Overview -> the '1.1 Widget Overview' heading object
+        r = one('demo-doc.md §Widget Overview (p. 1) — "The widget supply '
+                'rail is 3.3 V nominal."')
+        self.assertEqual(r.verdict, "OK")
+
+    def test_unknown_named_section_fails(self):
+        r = one('demo-doc.md §Nonexistent Mode (p. 6) — "Rails sequenced down."')
+        self.assertEqual(r.verdict, "SECTION_NOT_FOUND")
 
     def test_bare_and_paren_citations_in_one_paragraph(self):
         # both page forms side by side must yield two graded citations —
@@ -153,7 +230,7 @@ class SyntheticCorpusTest(unittest.TestCase):
         # citing INDEX.md (or any non-corpus .md) as a source is a
         # wrong-document citation — it can never be fetched, unlike a
         # canonical stem whose doc is simply not on disk yet
-        r = one('INDEX.md §1.1 (p. 1) — "whatever"', SYNTH)
+        r = one('INDEX.md §1.1 (p. 1) — "whatever"')
         self.assertEqual(r.verdict, "DOC_UNKNOWN")
 
     def test_doc_missing_and_exit_code_distinct_from_hallucination(self):
@@ -173,6 +250,15 @@ class SyntheticCorpusTest(unittest.TestCase):
             r = one('orin-trm.md §1.1 (p. 3) — "anything"', Path(tmp))
             self.assertEqual(r.verdict, "DOC_MISSING")
             self.assertIn("fetch.sh", " ".join(r.notes))
+
+    def test_fetched_doc_without_json_is_no_provenance_not_a_pass(self):
+        # the TRM converts md-only (a full JSON would be ~970 MB): the doc
+        # IS fetched, but structural grading needs the JSON — a soft
+        # verdict, never a pass, and never the agent's fault
+        r = one('orin-trm.md §1.1 (p. 3) — "anything at all, invented."', SYNTH)
+        self.assertEqual(r.verdict, "NO_PROVENANCE")
+        self.assertIn("JSON", " ".join(r.notes))
+        self.assertEqual(grade.exit_code([r]), 2)
 
 
 class CliTest(unittest.TestCase):
@@ -194,6 +280,11 @@ class CliTest(unittest.TestCase):
             self.assertEqual(done.returncode, 1)
             self.assertIn("PAGE_OUTSIDE_SECTION", done.stdout)
 
+    def test_no_provenance_exits_two(self):
+        done = run_cli(None, SYNTH, stdin='orin-trm.md §1.1 (p. 3) — "anything"')
+        self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+        self.assertIn("NO_PROVENANCE", done.stdout)
+
     def test_stdin(self):
         done = run_cli(None, SYNTH,
                        stdin='demo-doc.md §1.1 (p. 1) — "The widget supply rail is 3.3 V nominal."')
@@ -212,15 +303,66 @@ class CliTest(unittest.TestCase):
         self.assertIn("no citations", done.stderr)
 
 
+real_corpus = unittest.skipUnless(
+    any(REAL.glob("*.json")),
+    "docling corpus (JSON) not fetched — run agent/hw-docs/fetch.sh")
+
+
 @real_corpus
 class RealCorpusTest(unittest.TestCase):
-    """The UART-session answer (issue #20) and INDEX's memorized answers
-    against the actual fetched corpus."""
+    """The fetched docling corpus: the #29 known-good probes, the UART-session
+    answer (issue #20), and INDEX's memorized answers."""
+
+    @needs("devkit-carrier-spec")
+    def test_button_table_probe(self):
+        # the issue's probe: button table = devkit-carrier-spec §3.4 (p. 28)
+        r = one('devkit-carrier-spec.md §3.4 (p. 28) — "SYS_RESET*"', REAL)
+        self.assertEqual(r.verdict, "OK", r.notes)
+
+    @needs("devkit-carrier-spec")
+    def test_p29_vs_p28_trap_is_caught(self):
+        # the historical bug class: same section, same quote, page + 1 —
+        # §3.4's heading object sits on p.28 and its last body item ends
+        # before §3.5 starts on p.29, so 29 is outside by construction
+        r = one('devkit-carrier-spec.md §3.4 (p. 29) — "SYS_RESET*"', REAL)
+        self.assertEqual(r.verdict, "PAGE_OUTSIDE_SECTION")
+
+    @needs("devkit-carrier-spec")
+    def test_dehyphenated_cell_quote_on_p28(self):
+        # 'Auto-Power- On' in the PDF's wrapped cell, quoted as one word
+        r = one('devkit-carrier-spec.md §3.4 (p. 28) — "Connect pins 11 and 12 '
+                'to initiate power-on if Auto-Power-On disabled"', REAL)
+        self.assertEqual(r.verdict, "OK", r.notes)
+
+    @needs("datasheet")
+    def test_encoder_probe(self):
+        # the issue's probe: encoder line = datasheet §Encode (p. 7), an
+        # unnumbered heading object followed by its one-line text item
+        r = one('datasheet.md §Encode (p. 7) — "1080p30 Supported via CPU '
+                'Cores with Software"', REAL)
+        self.assertEqual(r.verdict, "OK", r.notes)
+
+    @needs("devkit-carrier-spec")
+    def test_figure_citation_probe(self):
+        # the "show me the pinout" case: the layout drawing is cited by
+        # caption — the caption object sits on p. 25, one page before the
+        # §3.3 table; a hand-written p. 26 cite is exactly the off-by-one
+        # this grader exists to catch
+        r = one('devkit-carrier-spec.md Figure 3-1 (p. 25) — "Figure 3-1. '
+                'Expansion Header Connections"', REAL)
+        self.assertEqual(r.verdict, "OK", r.notes)
+
+    @needs("devkit-carrier-spec")
+    def test_figure_page_before_the_table_is_the_trap(self):
+        r = one('devkit-carrier-spec.md Figure 3-1 (p. 26) — "Figure 3-1. '
+                'Expansion Header Connections"', REAL)
+        self.assertEqual(r.verdict, "PAGE_OUTSIDE_SECTION", r.notes)
 
     @needs("devkit-carrier-spec")
     def test_uart_session_answer_grades_clean(self):
         results = grade.grade(grade.parse_answer(
-            (FIXTURES / "uart-session-answer.md").read_text(encoding="utf-8")), REAL)
+            (HERE / "fixtures" / "uart-session-answer.md").read_text(
+                encoding="utf-8")), REAL)
         # two citations in the fixture: bare "…Table 3-4, p. 28:" and the
         # parenthesized "§3.4 (p. 28)" — both must grade, both must pass
         self.assertEqual([r.verdict for r in results], ["OK", "OK"], results)
@@ -228,7 +370,8 @@ class RealCorpusTest(unittest.TestCase):
     @needs("devkit-carrier-spec")
     def test_uart_session_answer_page_shifted_by_one_is_caught(self):
         # the historical bug, mechanically: the same answer citing p. 29
-        done = run_cli(str(FIXTURES / "uart-session-answer.corrupt-page.md"), REAL)
+        done = run_cli(str(HERE / "fixtures" /
+                           "uart-session-answer.corrupt-page.md"), REAL)
         self.assertEqual(done.returncode, 1)
         self.assertIn("PAGE_OUTSIDE_SECTION", done.stdout)
         self.assertNotIn("OK —", done.stdout)
@@ -237,19 +380,11 @@ class RealCorpusTest(unittest.TestCase):
         # the twins must never drift: the corrupt one is exactly the clean
         # answer with p. 28 shifted to p. 29, or the test above proves
         # nothing about page-shift detection
-        clean = (FIXTURES / "uart-session-answer.md").read_text(encoding="utf-8")
-        corrupt = (FIXTURES / "uart-session-answer.corrupt-page.md").read_text(encoding="utf-8")
+        clean = (HERE / "fixtures" / "uart-session-answer.md").read_text(
+            encoding="utf-8")
+        corrupt = (HERE / "fixtures" /
+                   "uart-session-answer.corrupt-page.md").read_text(encoding="utf-8")
         self.assertEqual(clean.replace("p. 28", "p. 29"), corrupt)
-
-    @needs("devkit-carrier-spec")
-    def test_uart_answer_br_wrapped_table_quote_resolves(self):
-        # the PC_LED- cell is `...indicate System<br>Sleep/Wake (Off when
-        # system in sleepmode)` — quoted with a space, from a table
-        results = grade.grade(grade.parse_answer(
-            (FIXTURES / "uart-session-answer.md").read_text(encoding="utf-8")), REAL)
-        quoted = [r for r in results if r.citation.quote and "PC_LED" in r.citation.quote]
-        self.assertTrue(quoted, "PC_LED quote must be found and paired")
-        self.assertEqual(quoted[0].verdict, "OK")
 
     @needs("datasheet")
     def test_index_memorized_datasheet_answer(self):
@@ -260,19 +395,20 @@ class RealCorpusTest(unittest.TestCase):
         self.assertEqual(r.verdict, "OK", r.notes)
 
     @needs("devkit-carrier-spec")
-    def test_index_uart1_citation_from_issue_21(self):
-        # 40-pin header UART pins: §3.3 Table 3-3 p. 26; the pin-8 cell wraps
-        # an identifier mid-token with <br> — quoted here without spaces
+    def test_uart1_wrapped_identifier_resolves(self):
+        # the ball-name cell is 'GP70_UART1_T XD_BOOT2_STR AP' in the JSON
+        # (spaces where the PDF wrapped the token) — canonical() joins it;
+        # quoted here as the joined form
         r = one('J12 pin 8 is UART1_TXD (devkit-carrier-spec.md §3.3 Table 3-3, '
-                'p. 26) — ball name "GP70_UART1_T<br>XD_BOOT2_STR<br>AP", '
-                'Output/Bidir.', REAL)
+                'p. 26) — ball name "GP70_UART1_TXD_BOOT2_STRAP", Output/Bidir.',
+                REAL)
         self.assertEqual(r.verdict, "OK", r.notes)
 
     @needs("datasheet")
     def test_datasheet_decode_table_citation(self):
         # §2.9 + Table 2-5 (INDEX routing row): the table opens on p. 20 —
         # hand-written citations assuming p. 21 (the TOC's printed page + a
-        # wrong offset guess) are exactly what this grader exists to catch.
+        # wrong offset guess) are exactly what this grader exists to catch
         r = one('Decode silicon (datasheet.md §2.9 Table 2-5, p. 20) covers '
                 'H.264 "Baseline, Main, High" up to 4K30.', REAL)
         self.assertEqual(r.verdict, "OK", r.notes)
