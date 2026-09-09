@@ -118,6 +118,19 @@ fi
 # Node needs a Windows-form env var even under Git Bash
 export CLAUDE_CONFIG_DIR="$(cygpath -w "$CONFIG_DIR" 2>/dev/null || echo "$CONFIG_DIR")"
 
+# A credentials file existing is not the same as it working: a stale token
+# passes the check above and then errors every session with "Not logged in"
+# (#32). One probe through the exact isolated config the sessions will use
+# costs a few cents and catches it before the arms are even built.
+if [[ $DRY_RUN -eq 0 ]]; then
+  say "pre-flight: auth probe through the isolated config"
+  if ! probe=$( (cd "$SCRATCH" && timeout 120 "$CLAUDE_BIN" -p "say pong" --no-session-persistence) 2>&1 ); then
+    echo "headless auth is dead: ${probe:-claude -p returned no output}" >&2
+    echo "run \`claude\` interactively once and /login, then re-run" >&2
+    exit 1
+  fi
+fi
+
 # --- arms ---------------------------------------------------------------------
 
 say "building arms from git export of $REV"
