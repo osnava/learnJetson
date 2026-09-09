@@ -119,18 +119,15 @@ order (issue #28): **route → search → declare**, in that order —
 | `launch_vllm.sh` | Cosmos-Reason2 vLLM launcher — stream to the Jetson, run by path ([runbook](../docs/cosmos-reason2-vllm.md)) |
 | `cosmos-env.example` | template for the Jetson's `~/.cosmos-env` (real file **gitignored**) |
 
-## Ultralytics/YOLO work — use the installed agent skills
+## Domain agent skills — prefer them over memory
 
-Anything touching the vision stack — `src/detection_server.py`,
-`src/segmentation_server.py`, `models/` engines, YOLO weights, datasets,
-training, TensorRT export, tracking — should run through the official
-**Ultralytics agent skills**, installed user-scope on this PC (issue #33,
-FIELD_NOTES #21): a `yolo` router plus six lifecycle skills (models,
-datasets, training, tuning, inference, export). Claude Code loads them as
-the `yolo@ultralytics` plugin; ZCode from `~/.zcode/skills/yolo*`. Invoke
-them (or follow their guidance) instead of working from memory — and check
-the `ultralytics` version inside the target container when exact flags or
-formats matter; the installed package is authoritative.
+Some domains have vendor skills installed on this PC (currently
+Ultralytics/YOLO for the vision stack — what and how to update:
+FIELD_NOTES #21). When a task falls in such a domain — even phrased
+without the vendor's keywords ("improve detection FPS") — route through
+the installed skills instead of working from memory. The package
+installed in the target container, not the skill, is authoritative for
+version-specific flags and formats.
 
 ## Repo hygiene on Windows (line endings + exec bits)
 
