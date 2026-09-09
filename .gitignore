@@ -38,3 +38,8 @@ JETSON_RECOVERY_HANDOFF.md
 /AGENTS.md
 agent/hw-docs/explore/*
 !agent/hw-docs/explore/FINDINGS.md
+
+# Local agent-tool state (ZCode + its plugins) — never part of the repo
+/.zcode/
+/.v2c/
+/tmpwebapp-*.log
