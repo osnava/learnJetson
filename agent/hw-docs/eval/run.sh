@@ -138,25 +138,20 @@ say "building arms from git export of $REV"
 
 # --- questions ----------------------------------------------------------------
 
-# ids and question texts loaded once, kept in lockstep by index
-mapfile -t QIDS < <("$PYTHON" - "$HERE/questions.yaml" "$IDS" <<'PY'
+# one pass over questions.yaml: id<TAB>question per line, split into
+# lockstep arrays (whitespace inside a question flattens to spaces)
+mapfile -t QLINES < <("$PYTHON" - "$HERE/questions.yaml" "$IDS" <<'PY'
 import sys, yaml
 ids = [s for s in sys.argv[2].split(",") if s] if len(sys.argv) > 2 else []
 qs = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))
 for q in qs:
     if not ids or q["id"] in ids:
-        print(q["id"])
+        print(q["id"] + "\t" + " ".join(str(q["question"]).split()))
 PY
 )
+QIDS=("${QLINES[@]%%$'\t'*}")
+QTEXTS=("${QLINES[@]#*$'\t'}")
 [[ ${#QIDS[@]} -gt 0 ]] || { echo "no questions selected" >&2; exit 1; }
-mapfile -t QTEXTS < <("$PYTHON" - "$HERE/questions.yaml" "${QIDS[*]}" <<'PY'
-import sys, yaml
-ids = sys.argv[2].split()
-qs = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))
-for qid in ids:
-    print(next(q["question"] for q in qs if q["id"] == qid))
-PY
-)
 say "${#QIDS[@]} questions: ${QIDS[*]}"
 
 # --- one cold session ----------------------------------------------------------

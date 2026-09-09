@@ -355,14 +355,10 @@ class DocIndex:
     figures: dict[str, tuple[set[int], str]]  # "3-1" -> (pages, caption text)
 
 
-def _pages(item: dict) -> set[int]:
-    return {p.get("page_no") for p in (item.get("prov") or []) if p.get("page_no")}
-
-
 def item_pages(item: dict) -> set[int]:
-    """Public alias of the page-set extractor — the linter (#30) sums these
+    """Page set of one JSON item's provenance — the linter (#30) sums these
     to compare JSON provenance coverage against a source PDF."""
-    return _pages(item)
+    return {p.get("page_no") for p in (item.get("prov") or []) if p.get("page_no")}
 
 
 def resolve_token(dox: DocIndex, token: str, kind: str) -> Span | None:
@@ -454,11 +450,11 @@ def load_doc(path: Path) -> DocIndex | None:
         elif label == "caption":
             # a caption's span is its own pages plus the parent object's —
             # the figure drawing may sit on the page before its caption
-            pages = _pages(it)
+            pages = item_pages(it)
             parent = (it.get("parent") or {}).get("$ref", "")
             if parent.startswith(("#/tables/", "#/pictures/")):
                 try:
-                    pages |= _pages(_deref(doc, parent))
+                    pages |= item_pages(_deref(doc, parent))
                 except (ValueError, IndexError, KeyError):
                     pass
             m = _TABLE_CAP_RE.match(text)
@@ -487,7 +483,7 @@ def _section_item_range(dox: DocIndex, hpos: int) -> tuple[int, int | None]:
 def _range_pages(dox: DocIndex, a: int, b: int | None) -> set[int]:
     pages: set[int] = set()
     for it in dox.items[a: b if b is not None else len(dox.items)]:
-        pages |= _pages(it)
+        pages |= item_pages(it)
     return pages
 
 
@@ -576,7 +572,7 @@ def _skeleton(text: str, wrap_table) -> str:
 
 
 def _page_skeleton(dox: DocIndex, page: int, wrap_table) -> str:
-    parts = [_item_text(it) for it in dox.items if page in _pages(it)]
+    parts = [_item_text(it) for it in dox.items if page in item_pages(it)]
     return _skeleton("\n".join(p for p in parts if p), wrap_table)
 
 
@@ -654,11 +650,7 @@ def grade(citations: list[Citation], corpus_dir: Path) -> list[Result]:
         # belong to
         missing, page_sets = [], []
         for tok, kind in c.secs:
-            lookups = token_lookups(tok, kind)
-            if len(lookups) == 2:  # §3.1-3.8: one structural range
-                sp = _range_span(dox, lookups[0][1], lookups[1][1])
-            else:
-                sp = _resolve(dox, *lookups[0])
+            sp = resolve_token(dox, tok, kind)
             if sp is not None:
                 page_sets.append(sp)
             else:

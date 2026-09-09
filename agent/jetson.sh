@@ -69,8 +69,6 @@ remote_panel() {
   '
 }
 
-cmd_status() { remote_panel "$1"; }
-
 cmd_health() {
   local ip="$1" out
   out="$(remote_panel "$ip")" || { echo "unreachable"; return 2; }
@@ -100,7 +98,7 @@ cmd_dropcache() {
 case "${1:-help}" in
   find)   shift; cmd_find "$@" ;;
   ssh)    shift; cmd_ssh "$@" ;;
-  status) shift; cmd_status "$@" ;;
+  status) shift; remote_panel "$@" ;;
   health) shift; cmd_health "$@" ;;
   logs)   shift; cmd_logs "$@" ;;
   dropcache) shift; cmd_dropcache "$@" ;;

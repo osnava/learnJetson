@@ -105,7 +105,7 @@ def load_index(index_dir: Path):
     return records, numpy.vstack(vectors)
 
 
-def main(argv=None, embed_fn=embed.embed_query) -> int:
+def main(argv=None, embed_fn=None) -> int:
     ap = argparse.ArgumentParser(description="semantic search over the docling corpus")
     ap.add_argument("query", help="natural-language question or identifier")
     ap.add_argument("--index-dir", type=Path, default=Path(__file__).parent / "md/index")
@@ -134,7 +134,7 @@ def main(argv=None, embed_fn=embed.embed_query) -> int:
         vectors = vectors[keep]
 
     try:
-        q = embed_fn(args.query)
+        q = embed_fn(args.query) if embed_fn else embed.embed_texts([args.query])[0]
     except ImportError:
         _reexec_or_die()
 

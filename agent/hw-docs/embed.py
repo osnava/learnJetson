@@ -45,8 +45,3 @@ def embed_texts(texts: list[str]):
             emb = (hidden * mask).sum(1) / mask.sum(1).clamp(min=1e-9)
             out.append(torch.nn.functional.normalize(emb, dim=-1).cpu())
     return torch.cat(out).numpy().astype("float32")
-
-
-def embed_query(text: str):
-    """Single-text convenience over embed_texts."""
-    return embed_texts([text])[0]

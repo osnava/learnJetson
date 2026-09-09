@@ -127,23 +127,17 @@ def convert_slab(src: Path, first: int, last: int):
     return res.document
 
 
-_MD_CHUNKS = None
+def _md_serializer_provider():
+    """The chunk-serializer provider: chunks serialize as markdown — table
+    rows stay rows instead of the default key-value linearization, so
+    retrieved snippets stay greppable."""
+    d = _docling()
 
+    class _MdChunks(d["BaseSerializerProvider"]):
+        def get_serializer(self, doc):
+            return d["MarkdownDocSerializer"](doc=doc)
 
-def _md_chunks_cls():
-    """Build (once) the chunk-serializer provider class: chunks serialize
-    as markdown — table rows stay rows instead of the default key-value
-    linearization, so retrieved snippets stay greppable."""
-    global _MD_CHUNKS
-    if _MD_CHUNKS is None:
-        d = _docling()
-
-        class _MdChunks(d["BaseSerializerProvider"]):
-            def get_serializer(self, doc):
-                return d["MarkdownDocSerializer"](doc=doc)
-
-        _MD_CHUNKS = _MdChunks
-    return _MD_CHUNKS
+    return _MdChunks()
 
 
 def chunk_records(doc, stem: str) -> list[dict]:
@@ -153,7 +147,7 @@ def chunk_records(doc, stem: str) -> list[dict]:
     """
     chunker = _docling()["HybridChunker"](
         tokenizer=MODEL, max_tokens=MAX_CHUNK_TOKENS,
-        serializer_provider=_md_chunks_cls()(), repeat_table_header=True)
+        serializer_provider=_md_serializer_provider(), repeat_table_header=True)
     records = []
     for chunk in chunker.chunk(doc):
         pages = sorted({p.page_no for item in chunk.meta.doc_items

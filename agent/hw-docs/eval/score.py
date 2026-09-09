@@ -376,10 +376,6 @@ def filter_transcript(text: str, keep: int = 500) -> str:
 
 # --- CLI -----------------------------------------------------------------------
 
-def _questions_path() -> Path:
-    return HERE / "questions.yaml"
-
-
 def _load_questions(path: Path) -> list[dict]:
     import yaml
     with open(path, encoding="utf-8") as f:
@@ -455,7 +451,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("score_dir", type=Path,
                     help="run dir with transcripts/<arm>/<id>.ndjson")
-    ap.add_argument("--questions", type=Path, default=_questions_path())
+    ap.add_argument("--questions", type=Path, default=HERE / "questions.yaml")
     ap.add_argument("--corpus", type=Path, required=True,
                     help="md/ corpus both arms are graded against (the real one)")
     ap.add_argument("--out", type=Path, required=True)

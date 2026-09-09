@@ -45,7 +45,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 import grade  # noqa: E402  (structural grader: resolution + parse/grade)
 
 HERE = Path(__file__).resolve().parent          # agent/hw-docs/
-ROOT = HERE
 
 # The one thing that can never come from docling: v1's page anchors. Any
 # file in md/ still carrying them is a leftover pymupdf rendering that
@@ -631,10 +630,10 @@ def lint_urls(fetch_sh: Path, rep: Report) -> None:
 
 def main(argv: list[str] | None = None, page_count=pdf_page_count) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--index", type=Path, default=ROOT / "INDEX.md")
-    ap.add_argument("--corpus", type=Path, default=ROOT / "md")
-    ap.add_argument("--pdf", type=Path, default=ROOT / "pdf")
-    ap.add_argument("--fetch-sh", type=Path, default=ROOT / "fetch.sh")
+    ap.add_argument("--index", type=Path, default=HERE / "INDEX.md")
+    ap.add_argument("--corpus", type=Path, default=HERE / "md")
+    ap.add_argument("--pdf", type=Path, default=HERE / "pdf")
+    ap.add_argument("--fetch-sh", type=Path, default=HERE / "fetch.sh")
     ap.add_argument("--offline", action="store_true", help="skip the URL HEAD checks")
     ap.add_argument("--urls-only", action="store_true",
                     help="run only the URL HEAD checks (the CI tier)")
