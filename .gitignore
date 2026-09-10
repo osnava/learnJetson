@@ -43,3 +43,6 @@ agent/hw-docs/explore/*
 /.zcode/
 /.v2c/
 /tmpwebapp-*.log
+
+# Local plans/ideas scratch space — never part of the repo
+/plans_ideas/
