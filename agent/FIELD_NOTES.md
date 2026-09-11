@@ -126,7 +126,9 @@ bank the calibration caches, write the 2-command retry for after the next
 JetPack/TRT upgrade, and stop burning sessions on "fixing" an upstream gap.
 
 **13. INT8 calibration details that cost hours if unknown.**
-Calibration uses the **val split** of `data=` (no `split=` arg exists), batch
+Calibration uses the **val split** of `data=` (no `split=` arg exists in the
+8.3-era container this was learned on — ultralytics ≥8.4 adds one, moves to
+`quantize=8/16`, and 8.4.31 fixes non-square-imgsz calibration), batch
 1, MinMax; the cache is `<stem>.cache` and is **reused verbatim** on rebuilds;
 auto-download pulls ~20 GB of COCO when calibration needs only val2017.
 Documented with build logs in [the INT8 doc](../docs/performance/int8-tensorrt-engines.md).

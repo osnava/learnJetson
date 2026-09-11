@@ -96,7 +96,10 @@ scripts live on the Jetson at `/ssd/int8/` so the retry is a 2-command job.
   `<stem>.cache` next to the ONNX and is re-used verbatim on rebuilds. The
   racetrack cache was produced against the **train split** (3320 images) per
   issue #7, via `Racetrack.v1i.yolov11/data-calib-train.yaml` (`val:` pointed
-  at `train/images` — ultralytics has no `split=` export arg).
+  at `train/images` — ultralytics 8.3.225, the version pinned here, has no
+  `split=` export arg. **≥8.4 adds one**, moves to `quantize=8/16` (`int8=`/
+  `half=` become deprecated aliases), and 8.4.31 fixes non-square-`imgsz` INT8
+  calibration (PR #24028) — re-check all of this on any image update).
 - **Old `models/*.engine` copies in this repo were TRT-8-era** (pre-JetPack
   6.2.2) and could not deserialize on TensorRT 10.3 at all — they are not a
   runnable FP16 baseline, which is why this change also refreshes them with
