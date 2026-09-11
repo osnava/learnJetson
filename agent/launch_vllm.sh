@@ -35,7 +35,9 @@ API="http://localhost:${VLLM_PORT}"
 
 fail_gate() { echo "GATE FAILED: $*"; exit 2; }
 
-dump_logs() { docker logs --tail 40 "$VLLM_CONTAINER" 2>&1 || true; }
+# 80 lines: 40 truncated the KV-cache root-cause line above the traceback on the
+# 2026-09-10 0.55 refusal (umwelt.md Part 0) — refusals must retain their cause.
+dump_logs() { docker logs --tail 80 "$VLLM_CONTAINER" 2>&1 || true; }
 
 preflight() {
   echo "== preflight gates (runbook §4) =="
