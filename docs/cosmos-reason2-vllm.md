@@ -229,6 +229,13 @@ vllm serve /models/cosmos-reason2-2b --served-model-name cosmos-reason2-2b \
   768/0.52 produced a clean `0.08 GiB KV cache needed > 0.0 GiB available` error, and
   **1024/0.55 serves**: weights 2.91 GiB, KV cache 0.2 GiB (1,872 tokens). The preprocessor
   patch is the prerequisite, not a last resort.
+- **Drift (measured 2026-09-10):** the identical 1024/0.55 that served on 09-01
+  refused to start (0.08 GiB KV vs 0.11 needed for the 1024 window); **1024/0.58
+  served the same day** (KV 0.38 GiB, 3,568 tokens). On Orin, vLLM reads free memory
+  system-wide and its headroom moves with machine state — treat 0.55 as the 09-01
+  record, not a permanent guarantee, and step to 0.58 (still under the 0.60 ceiling)
+  before re-litigating anything else. Never leave a failed container un-removed: the
+  next launch profiles against less memory.
 
 **4.3 Launch + gates** `[AUTO]` — `./launch_vllm.sh` does preflight → serve → readiness poll,
 then run the three gates by hand:
@@ -328,7 +335,7 @@ live-vlm-webui && ./scripts/start_container.sh` — same port.)
 
 | Setting | Value | Why |
 |---|---|---|
-| Max Tokens | **100–150** | image tokens consume ~500–600 of the 1024 window; defaults (512) 400-error |
+| Max Tokens | **100–150** | with the §2.4 preprocessor patch an image costs **~50 tokens** (measured 2026-09-10: `prompt_tokens` 80–83 including question + chat template; the ~500–600 figure below was the **pre-patch** WebUI note). The 100–150 cap is for decode latency (~19 tok/s), not context pressure |
 | Frame Interval | **450+ (measured 2026-09-01)** | at 30 fps, interval ≥ 30 × gate-3 seconds: 13.8 s × 30 ≈ 415, rounded up so requests never queue |
 | Prompt shape | structured physical-reasoning prompts | see below |
 
@@ -360,7 +367,7 @@ launch-time-only step (see §7) — otherwise leave swap alone.
 | **Swap policy** | First serve attempt with swap **untouched** (16 GB `/ssd` swapfile + zram stay on) | The memory floor (#17) + headless already give headroom; swap is the safety net, not extra speed. If gate-3 latency is erratic (swap-in visible in `free -m`), make `sudo swapoff -a` a launch-time-only `[CONFIRM]` cheat-sheet step (needs the owner's sudo). **Never disable zram permanently.** Outcome (2026-09-01): swap untouched, latency steady — no swapoff step warranted. |
 | **Port 8010** | Serve on 8010 | Free on this box (verified 2026-09-01). The draft's llama.cpp fallback port 8080 collides with open-webui — moot because open-webui must be stopped anyway for exclusivity, but 8010 avoids the question entirely. |
 | **Firewall** | Check `sudo ufw status` at deploy time; open 8010/tcp **only if active** | Could not be verified non-interactively (`ufw status` needs the owner's sudo). LAN services (5000/8080/9001) have always been reachable without port work here, suggesting ufw is inactive. Opening ports is ask-human-first per [`agent/AGENTS.md`](../agent/AGENTS.md). |
-| **GPU exclusivity as a gate** | Hard `[GATE]` inside `launch_vllm.sh`: no other containers + ~7 GB available | 8 GB unified heap; ultralytics ~2–3 GB resident each, ollama similar. Nothing else fits alongside — no ROS 2 / second stack on this board while serving. |
+| **GPU exclusivity as a gate** | Hard `[GATE]` inside `launch_vllm.sh`: no other containers + ~7 GB available | 8 GB unified heap; ultralytics ~2–3 GB resident each, ollama similar. No ROS 2 or PyTorch-bearing second stack on this board while serving. Measured exception under evaluation: a bare-TensorRT perception process (~0.3 GB RSS, 288 MB measured 2026-09-11) — plan around the gate, not around vLLM's KV headroom. |
 
 ## 8. Troubleshooting
 
@@ -369,7 +376,7 @@ launch-time-only step (see §7) — otherwise leave swap alone.
 | **Engine dies at startup: `NVML_SUCCESS == r INTERNAL ASSERT FAILED` (CUDACachingAllocator) during init** | Apply the §2.4 preprocessor patch — the 16.7M-pixel default makes vLLM's profiling pass OOM; the assert is Jetson's `NvMapMemAlloc` ENOMEM surfacing through PyTorch. Field-verified 2026-09-01: both primary and fallback configs died identically without it; 1024/0.55 serves with it. | Not memory-flag tuning — the profiling workload is driven by image resolution, not `--max-model-len` |
 | **Gibberish output** (repeated tokens, mixed scripts) | Pin the container to vLLM **0.14.0** (`0.14.0-r36.4-tegra-aarch64-cu126-22.04`) before touching anything else. 0.16.0-era builds show this on Cosmos-Reason2; it mimics a tokenizer bug. | Do **not** tune memory flags in response — it's a container-version bug. |
 | **Text passes, images OOM / context overflow** | Raise `--max-model-len` (768 → 1024) | Not `--gpu-memory-utilization` — image tokens need context space, not KV pool fraction; and never above 0.60 on this board. |
-| **`400 max_tokens is too large` from WebUI** | WebUI Max Tokens down to 100–150 (image tokens eat ~500–600 of the window) | — |
+| **`400 max_tokens is too large` from WebUI** | WebUI Max Tokens down to 100–150. Post-§2.4-patch an image is ~50 tokens, so this error now signals a **prompt that grew past the window** — check the static block, not the image | — |
 | **Model missing in WebUI dropdown** | Check `curl http://<jetson-ip>:8010/v1/models` from the PC; API Base URL must be `http://` + Jetson LAN IP, not `https`/`localhost` | — |
 | **vLLM won't start: OOM at load** | Fallback config (§4.2); verify exclusivity gate actually passed (`docker ps` empty) | Don't stack changes — one flag at a time, re-run gates. |
 | **Slow inference** | Expected: this config prioritizes fitting in 8 GB over speed. Shorten Max Tokens, raise Frame Interval | — |
