@@ -20,6 +20,12 @@ VLLM_MAX_MODEL_LEN="1024"
 VLLM_MAX_BATCHED_TOKENS="1024"
 VLLM_GPU_MEM_UTIL="0.55"
 
+# Optional: pin the KV cache pool size in bytes (vLLM 0.14 --kv-cache-memory-bytes).
+# Pool is set directly instead of derived from free memory (kills KV drift); the
+# profiling pass and the VLLM_GPU_MEM_UTIL admission check still run. A 1024-token
+# window x1 sequence needs 0.11 GiB — ~160 MiB is the sane pin. Unset = vLLM sizes it.
+#VLLM_KV_CACHE_BYTES="167772160"
+
 # torch.compile cache on the host — first launch compiles kernels (slow), later
 # launches reuse it (runbook §4.2)
 VLLM_CACHE_DIR="$HOME/.cache/vllm"

@@ -27,6 +27,13 @@ ENV_FILE="${COSMOS_ENV:-$HOME/.cosmos-env}"
 : "${VLLM_MAX_MODEL_LEN:=1024}"        # known-good on 8 GB; fallback 768 (runbook §4)
 : "${VLLM_MAX_BATCHED_TOKENS:=$VLLM_MAX_MODEL_LEN}"
 : "${VLLM_GPU_MEM_UTIL:=0.55}"         # known-good; fallback 0.52; NEVER above 0.60
+: "${VLLM_KV_CACHE_BYTES:=}"           # optional: pin the KV pool size in bytes, e.g.
+                                       # 167772160 (~160 MiB; a 1024-token x1-seq window
+                                       # needs 0.11 GiB). Passes vLLM 0.14's
+                                       # --kv-cache-memory-bytes: pool set directly, not
+                                       # derived from free memory (kills run-to-run KV
+                                       # drift). Profiling + the util admission check
+                                       # still run. Unset = vLLM sizes the pool.
 : "${VLLM_CONTAINER:=cosmos-vllm}"
 : "${VLLM_CACHE_DIR:-$HOME/.cache/vllm}"
 : "${READY_TIMEOUT_SECS:=900}"         # first launch compiles kernels; later runs reuse the cache
@@ -81,6 +88,7 @@ serve() {
       --max-model-len "$VLLM_MAX_MODEL_LEN" \
       --max-num-batched-tokens "$VLLM_MAX_BATCHED_TOKENS" \
       --gpu-memory-utilization "$VLLM_GPU_MEM_UTIL" \
+      ${VLLM_KV_CACHE_BYTES:+--kv-cache-memory-bytes "$VLLM_KV_CACHE_BYTES"} \
       --max-num-seqs 1 \
       --enable-chunked-prefill \
       --limit-mm-per-prompt '{"image":1}' \

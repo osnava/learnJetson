@@ -222,6 +222,13 @@ vllm serve /models/cosmos-reason2-2b --served-model-name cosmos-reason2-2b \
 
 - **Fallback** (first OOM): `--max-model-len 768` / `--max-num-batched-tokens 768` /
   `--gpu-memory-utilization 0.52`.
+- **KV pool pin (optional, verified in the container 2026-09-10):**
+  `VLLM_KV_CACHE_BYTES` in `~/.cosmos-env` passes vLLM 0.14's
+  `--kv-cache-memory-bytes` — the pool is set directly (a 1024-token ×1-seq
+  window needs 0.11 GiB; ~160 MiB is the sane pin) instead of derived from
+  free memory, which is where the 0.55-vs-0.58 drift lives. The profiling pass
+  and the utilization admission check still run; measure post-launch `free -m`
+  before crediting it with anything.
 - **Never go above 0.60** on this board. Headless freed ~0.8–1 GB — if you raise anything,
   raise **one flag at a time** and re-run the §4 image gate each time.
 - **Field-verified ladder (2026-09-01):** without the §2.4 preprocessor patch, *both*
@@ -367,7 +374,7 @@ launch-time-only step (see §7) — otherwise leave swap alone.
 | **Swap policy** | First serve attempt with swap **untouched** (16 GB `/ssd` swapfile + zram stay on) | The memory floor (#17) + headless already give headroom; swap is the safety net, not extra speed. If gate-3 latency is erratic (swap-in visible in `free -m`), make `sudo swapoff -a` a launch-time-only `[CONFIRM]` cheat-sheet step (needs the owner's sudo). **Never disable zram permanently.** Outcome (2026-09-01): swap untouched, latency steady — no swapoff step warranted. |
 | **Port 8010** | Serve on 8010 | Free on this box (verified 2026-09-01). The draft's llama.cpp fallback port 8080 collides with open-webui — moot because open-webui must be stopped anyway for exclusivity, but 8010 avoids the question entirely. |
 | **Firewall** | Check `sudo ufw status` at deploy time; open 8010/tcp **only if active** | Could not be verified non-interactively (`ufw status` needs the owner's sudo). LAN services (5000/8080/9001) have always been reachable without port work here, suggesting ufw is inactive. Opening ports is ask-human-first per [`agent/AGENTS.md`](../agent/AGENTS.md). |
-| **GPU exclusivity as a gate** | Hard `[GATE]` inside `launch_vllm.sh`: no other containers + ~7 GB available | 8 GB unified heap; ultralytics ~2–3 GB resident each, ollama similar. No ROS 2 or PyTorch-bearing second stack on this board while serving. Measured exception under evaluation: a bare-TensorRT perception process (~0.3 GB RSS, 288 MB measured 2026-09-11) — plan around the gate, not around vLLM's KV headroom. |
+| **GPU exclusivity as a gate** | Hard `[GATE]` inside `launch_vllm.sh`: no other containers + ~7 GB available | 8 GB unified heap; ultralytics ~2–3 GB resident each, ollama similar. No ROS 2 or PyTorch-bearing second stack on this board while serving. Measured exception under evaluation: a bare-TensorRT perception process (209–263 MB **system cost**, measured 2026-09-10) — plan around the gate, not around vLLM's KV headroom. |
 
 ## 8. Troubleshooting
 
